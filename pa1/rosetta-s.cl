@@ -9,12 +9,14 @@ Class Main Inherits IO {
 			self
 		else {
 			out_string(l.a());
+			out_string(" -- ");
 			out_string(l.b());
 			out_string("\n");
 			print_edgelist(l.next());
 		} fi
 
 	};
+	-- print in oder of a List
 	print_list(l : List) : Object {
 		if isvoid l then
 			self
@@ -25,6 +27,19 @@ Class Main Inherits IO {
 
 		} fi
 
+	};
+	-- print in reverse oder of a List
+	print_list_reverse(l : List) : Object {
+		if isvoid l then
+			self
+		else {
+			print_list_reverse(l.next());
+			out_string(l.a());
+			out_string("\n");
+		--	print_list(l.next());
+
+		} fi
+	
 	};
 	contains(l : List, a : String) : Bool {{
 		if isvoid l then
@@ -48,7 +63,7 @@ Class Main Inherits IO {
 					abort();
 				} else {
 					-- iterate all the edges
-					-- take any edges start with current					
+					-- take any edges start with current				
 					t_visited <- (new List).init(current, t_visited);
 					let edge_ptr : EdgeList<- edges in
 					while not(isvoid edge_ptr) loop {
@@ -73,21 +88,33 @@ Class Main Inherits IO {
 		while reading loop {
 			let a : String <- in_string() in
 			let b : String <- in_string() in
-			{if contains(vertices,a) then
+			{
+			if b = "" then
+				reading <- false
+			else {
+				if contains(vertices,a) then
 				self
-			else
-				vertices <- (new List).init(a, vertices)
+			else {
+				if isvoid vertices then
+					vertices <- (new List).init(a, vertices)
+				else
+					vertices <- vertices.insert(a)
+				fi;
+			}
+				--vertices <- (new List).init(a, vertices)
 			fi;
 			if contains(vertices,b) then
 				self
 			else
-				vertices <- (new List).init(b, vertices)
+				vertices <- vertices.insert(b)
+				--vertices <- (new List).init(b, vertices)
 			fi;
-
-			if b = "" then
-				reading <- false
-			else
+			if isvoid edges then
 				edges <- (new EdgeList).init(a,b,edges)
+			else 
+				edges <- edges.insert(a,b)
+			fi;
+			}
 			fi;
 			};
 		} pool;
@@ -100,8 +127,11 @@ Class Main Inherits IO {
 			dfs(vertice_ptr.a(), edges);
 			vertice_ptr <- vertice_ptr.next();
 		} pool;
-		print_list(p_visited);
-		--print_edgelist(edges);
+		print_list_reverse(p_visited);
+		out_string("\n");
+		out_string("edges");
+		out_string("\n");
+		print_edgelist(edges);
 
 	}};
 
@@ -110,6 +140,7 @@ Class Main Inherits IO {
 } ;
 
 Class List {
+	
 	a : String;
 	next : List;
 	init(newa : String, newnext : List) : List {{
@@ -118,6 +149,21 @@ Class List {
 		self;
 
 	}};
+	insert(s : String) : List {
+		if not (a <= s) then          -- sort in reverse order
+			(new List).init(s,self)
+		else
+		{
+			if isvoid next then {
+				next <- (new List).init(s,next);
+				next;
+			}
+			else
+				(new List).init(a,next.insert(s))
+			fi;
+		}
+		fi
+	};
 	a() : String { a };
 	next() : List { next };
 
@@ -135,6 +181,21 @@ Class EdgeList {
 		self;
 	}};
 
+	insert(s1 : String, s2 : String) : EdgeList {
+	if not (b <= s2) then          -- sort in reverse order
+		(new EdgeList).init(s1,s2,self)
+	else
+	{
+		if isvoid next then {
+			next <- (new EdgeList).init(s1,s2,next);
+			next;
+		}
+		else
+			(new EdgeList).init(a, b, next.insert(s1,s2))
+		fi;
+	}
+	fi
+	};
 	a() : String { a };
 	b() : String { b };
 	next() : EdgeList { next };
