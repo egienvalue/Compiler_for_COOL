@@ -1,207 +1,209 @@
--- COOL: Reverse-sort the lines from standard input. 
+Class Main Inherits IO {
 
-Class Main -- Main is where the program starts
-  inherits IO { -- inheriting from IO allows us to read and write strings
-    let t_visited : List <- new Nil, p_visited : List <- new Nil in
-	main() : Object { -- this method is invoked when the program starts
-             let 
-                 edges : EdgeList <- new EdgeNil, -- the sorted list input lines
-                 done : Bool <- false -- are we done reading lines?
-				-- t_visited : List <- new Nil,
-				 --p_visited : List <- new Nil
-             in {
-               while not done loop {
-                 let s1 : String <- in_string () in
-				 let s2 : String <- in_string () in
-                 if s2 = "" then (* if we are done reading lines
-                                 * then s will be "" *) 
-                   done <- true 
-                 else 
-                   edges <- edges.cons(s1, s2) -- insertion sort it into our list
-                 fi; 
-               } pool ; -- loop/pool deliniates a while loop body
-			   edges.dfs("A", edges, t_visited, p_visited);
-			   p_visited.print_list();
-               edges.print_list () ; -- print out the result
-			}
+	edges : EdgeList;
+	vertices : List;
+	p_visited : List;
+	t_visited : List;
+	cycle_flag : Bool;
+	print_edgelist(l : EdgeList) : Object {
+		if isvoid l then
+			self
+		else {
+			out_string(l.a());
+			out_string(" -- ");
+			out_string(l.b());
+			out_string("\n");
+			print_edgelist(l.next());
+		} fi
+
 	};
+	-- print in oder of a List
+	print_list(l : List) : Object {
+		if isvoid l then
+			self
+		else {
+			out_string(l.a());
+			out_string("\n");
+			print_list(l.next());
+
+		} fi
+
+	};
+	-- print in reverse oder of a List
+	print_list_reverse(l : List) : Object {
+		if isvoid l then
+			self
+		else {
+			print_list_reverse(l.next());
+			out_string(l.a());
+			out_string("\n");
+		--	print_list(l.next());
+
+		} fi
+	
+	};
+	contains(l : List, a : String) : Bool {{
+		if isvoid l then
+			false
+		else {
+			if l.a() = a then
+				true
+			else
+				contains(l.next(),a)
+			fi;
+		} fi ;
+
+	}};
+
+	dfs(current: String, edges : EdgeList) : Object {{
+			if contains(p_visited, current) then
+				self
+			else {
+				if contains(t_visited, current) then {
+					cycle_flag <- true;
+					self;
+				} else {
+					-- iterate all the edges
+					-- take any edges start with current				
+					t_visited <- (new List).init(current, t_visited);
+					let edge_ptr : EdgeList<- edges in
+					while not(isvoid edge_ptr) loop {
+						if edge_ptr.a() = current then
+							dfs(edge_ptr.b(), edges)
+						else
+							self	
+						fi;
+						edge_ptr <- edge_ptr.next();
+					} pool;
+					p_visited <- (new List).init(current, p_visited); 
+
+				} fi;
+				
+			} fi;
+				
+		}};
+	
+	main() : Object {{
+		--out_string("hello world\n"); 
+		let reading : Bool <- true in
+		let cycle_flag : Bool <- false in
+		while reading loop {
+			let a : String <- in_string() in
+			let b : String <- in_string() in
+			{
+			if b = "" then
+				reading <- false
+			else {
+				if contains(vertices,a) then
+				self
+			else {
+				if isvoid vertices then
+					vertices <- (new List).init(a, vertices)
+				else
+					vertices <- vertices.insert(a)
+				fi;
+			}
+				--vertices <- (new List).init(a, vertices)
+			fi;
+			if contains(vertices,b) then
+				self
+			else
+				vertices <- vertices.insert(b)
+				--vertices <- (new List).init(b, vertices)
+			fi;
+			if isvoid edges then
+				edges <- (new EdgeList).init(a,b,edges)
+			else 
+				edges <- edges.insert(a,b)
+			fi;
+			}
+			fi;
+			};
+		} pool;
+	--	print_list(vertices);
+	--	out_string("\n");
+	--	out_string("topolist is:");
+	--	out_string("\n");
+		let vertice_ptr : List <- vertices in
+		while not (isvoid vertice_ptr) loop {
+			dfs(vertice_ptr.a(), edges);
+			vertice_ptr <- vertice_ptr.next();
+		} pool;
+		if cycle_flag = true then
+			out_string("cycle\n")
+		else
+			print_list_reverse(p_visited)
+		fi;
+	--	out_string("\n");
+	--	out_string("edges");
+	--	out_string("\n");
+	--	print_edgelist(edges);
+
+	}};
+
+
+
+} ;
+
+Class List {
+	
+	a : String;
+	next : List;
+	init(newa : String, newnext : List) : List {{
+		a <- newa;
+		next <- newnext;
+		self;
+
+	}};
+	insert(s : String) : List {
+		if not (a <= s) then          -- sort in reverse order
+			(new List).init(s,self)
+		else
+		{
+			if isvoid next then {
+				next <- (new List).init(s,next);
+				self;
+			}
+			else
+				(new List).init(a,next.insert(s))
+			fi;
+		}
+		fi
+	};
+	a() : String { a };
+	next() : List { next };
+
 };
 
+Class EdgeList {
+	a : String;
+	b : String;
+	next : EdgeList;
+	
+	init(newa : String, newb : String, newnext: EdgeList) : EdgeList {{
+		a <- newa;
+		b <- newb;
+		next <- newnext;
+		self;
+	}};
 
-(* The List type is not built in to Cool, so we'll have to define it 
- * ourselves. Cool classes can appear in any order, so we can define
- * List here _after_ our reference to it in Main. *) 
-Class List inherits IO { 
-        (* We only need three methods: cons, insert and print_list. *) 
-           
-        (* cons appends returns a new list with 'hd' as the first
-         * element and this list (self) as the rest of the list *) 
-	cons(hd : String) : Cons { 
-	  let new_cell : Cons <- new Cons in
-		new_cell.init(hd,self)
-	};
-
-        (* You can think of List as an abstract interface that both
-         * Cons and Nil (below) adhere to. Thus you're never supposed
-         * to call insert() or print_list() on a List itself -- you're
-         * supposed to build a Cons or Nil and do your work there. *) 
-	insert(i : String) : List { self };
-	is_empty() : Bool { false };	
-	print_list() : Object { abort() };
-
-	contains(x : String) : Bool { false };
-} ;
-
-Class Cons inherits List { -- a Cons cell is a non-empty list 
-	xcar : String;          -- xcar is the contents of the list head 
-	xcdr : List;            -- xcdr is the rest of the list
-
-	init(hd : String, tl : List) : Cons {
-	  {
-	    xcar <- hd;
-	    xcdr <- tl;
-	    self;
-	  }
-	};
-	 
-	is_empty() : Bool { false };
-        (* insert() does insertion sort (using a reverse comparison) *) 
-	insert(s : String) : List {
-		if not (s < xcar) then          -- sort in reverse order
-			(new Cons).init(s,self)
-		else
-			(new Cons).init(xcar,xcdr.insert(s))
-		fi
-	};
-
-	print_list() : Object {
-		{
-		     out_string(xcar);
-		     out_string("\n");
-		     xcdr.print_list();
-		}
-	};
-
-	contains(x : String) : Bool {
-		if x = xcar then {
-			out_string("contain");
-			out_string(x);
-			out_string("\n");
-			true;
+	insert(s1 : String, s2 : String) : EdgeList {
+	if not (b <= s2) then          -- sort in reverse order
+		(new EdgeList).init(s1,s2,self)
+	else
+	{
+		if isvoid next then {
+			next <- (new EdgeList).init(s1,s2,next);
+			self;
 		}
 		else
-			xcdr.contains(x)
-		fi
+			(new EdgeList).init(a, b, next.insert(s1,s2))
+		fi;
+	}
+	fi
 	};
-	
-} ;
+	a() : String { a };
+	b() : String { b };
+	next() : EdgeList { next };
 
-Class Nil inherits List { -- Nil is an empty list 
-	insert(s : String) : List { (new Cons).init(s,self) }; 
-
-	is_empty() : Bool { true };
-	print_list() : Object { true }; -- do nothing 
-	
-	contains(x : String) : Bool { false }; 
-
-} ;
-
-Class EdgeList inherits IO { 
-        (* We only need three methods: cons, insert and print_list. *) 
-           
-        (* cons appends returns a new list with 'hd' as the first
-         * element and this list (self) as the rest of the list *) 
-	cons(s1 : String, s2 : String) : EdgeCons { 
-	  let new_cell : EdgeCons <- new EdgeCons in
-		new_cell.init(s1, s2, self)
-	};
-
-        (* You can think of List as an abstract interface that both
-         * Cons and Nil (below) adhere to. Thus you're never supposed
-         * to call insert() or print_list() on a List itself -- you're
-         * supposed to build a Cons or Nil and do your work there. *) 
-	insert(s1 : String, s2 : String) : EdgeList { self };
-	
-	print_list() : Object { abort() };
-
-	contains(x : String) : Bool { false };
-
-	dfs(current : String, edges : EdgeList, t_visited : List,
-		p_visited : List) : List { new List};
-} ;
-
-Class EdgeCons inherits EdgeList { -- a Cons cell is a non-empty list 
-	xs1 : String;	-- element of tuple left part
-	xs2 : String;	-- element of tuple right part
-	xcdr : EdgeList;            -- xcdr is the rest of the list
-
-	init(s1 : String, s2 : String, tl : EdgeList) : EdgeCons {
-	  {
-	    xs1 <- s1;
-		xs2 <- s2;
-	    xcdr <- tl;
-	    self;
-	  }
-	};
-	  
-
-	print_list() : Object {
-		{
-			 out_string("<");
-		     out_string(xs1);
-			 out_string(",");
-			 out_string(xs2);
-			 out_string(">");
-		     out_string("\n");
-		     xcdr.print_list();
-		}
-	};
-
-	dfs(current : String, edges : EdgeList, 
-		t_visited : List, p_visited : List) : List {
-		{
-			if p_visited.contains(current) then
-				new Nil
-			else
-				if t_visited.contains(current) then
-					(new List).cons("cycle")
-				else
-				{
-					t_visited <- t_visited.cons(current);
-					let new_p_visited : List <- p_visited.cons(current) in
-					if (current = xs1) then {
-						let recursive_call_result : List <- 
-							edges.dfs(xs2, edges, t_visited, p_visited) in
-						if recursive_call_result.is_empty() then
-							xcdr.dfs(current, edges, t_visited, p_visited)
-						else
-							recursive_call_result
-						fi;
-					}
-					else 
-					{
-						p_visited <- new_p_visited; 
-						xcdr.dfs(current, edges, t_visited, p_visited);
-					}
-					fi;
-				}
-				fi	
-			fi;
-			
-			
-
-		}
-
-	};
-
-
-	
-} ;
-
-Class EdgeNil inherits EdgeList { -- Nil is an empty list 
-	dfs(current : String, edges : EdgeList, t_visited : List, 
-		p_visited : List) : List {new Nil};
-
-	print_list() : Object { true }; -- do nothing 
-	
-} ;
+};
