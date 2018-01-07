@@ -20,6 +20,7 @@ def visit(task):
     topo_list.append(task)
 
 
+
 topo_list = []
 p_marked = []
 t_marked = []
