@@ -3,7 +3,7 @@ TARGET = test
 
 CC = gcc
 
-CFLAGS = -c -v
+CFLAGS = -c -v -g -Wall -Wextra
 
 VPATH = src
 SRC = rosetta.c
