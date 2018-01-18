@@ -2,9 +2,11 @@ Class Main Inherits IO {
 
 	edges : EdgeList;
 	vertices : List;
-	p_visited : List;
-	t_visited : List;
+	p_visited : List;-- permanent mark
+	t_visited : List;-- temparory mark
 	cycle_flag : Bool;
+
+	-- print edge list for testing
 	print_edgelist(l : EdgeList) : Object {
 		if isvoid l then
 			self
@@ -42,6 +44,8 @@ Class Main Inherits IO {
 		} fi
 	
 	};
+
+	-- juedge whether a list includes a string
 	contains(l : List, a : String) : Bool {{
 		if isvoid l then
 			false
@@ -62,11 +66,11 @@ Class Main Inherits IO {
 				if contains(t_visited, current) then {
 					cycle_flag <- true;
 					self;
-				} else {
-					-- iterate all the edges
-					-- take any edges start with current				
+				} else {			
 					t_visited <- (new List).init(current, t_visited);
 					let edge_ptr : EdgeList<- edges in
+					-- iterate all the edges
+					-- take any edges start with current	
 					while not(isvoid edge_ptr) loop {
 						if edge_ptr.a() = current then
 							dfs(edge_ptr.b(), edges)
@@ -96,26 +100,26 @@ Class Main Inherits IO {
 			else {
 				if contains(vertices,a) then
 				self
-			else {
-				if isvoid vertices then
-					vertices <- (new List).init(a, vertices)
-				else
-					vertices <- vertices.insert(a)
+				else {
+					-- insert element to vertices alphabetically 
+					-- using insert sort
+					if isvoid vertices then
+						vertices <- (new List).init(a, vertices)
+					else
+						vertices <- vertices.insert(a)
+					fi;
+				}
 				fi;
-			}
-				--vertices <- (new List).init(a, vertices)
-			fi;
-			if contains(vertices,b) then
-				self
-			else
-				vertices <- vertices.insert(b)
-				--vertices <- (new List).init(b, vertices)
-			fi;
-			if isvoid edges then
-				edges <- (new EdgeList).init(a,b,edges)
-			else 
-				edges <- edges.insert(a,b)
-			fi;
+				if contains(vertices,b) then
+					self
+				else
+					vertices <- vertices.insert(b)
+				fi;
+				if isvoid edges then
+					edges <- (new EdgeList).init(a,b,edges)
+				else 
+					edges <- edges.insert(a,b)
+				fi;
 			}
 			fi;
 			};
@@ -155,6 +159,7 @@ Class List {
 		self;
 
 	}};
+	-- insert element alphabetically
 	insert(s : String) : List {
 		if not (a <= s) then          -- sort in reverse order
 			(new List).init(s,self)
@@ -186,9 +191,9 @@ Class EdgeList {
 		next <- newnext;
 		self;
 	}};
-
+	-- insert edge alphabetically 
 	insert(s1 : String, s2 : String) : EdgeList {
-	if not (b <= s2) then          -- sort in reverse order
+	if not (b <= s2) then    
 		(new EdgeList).init(s1,s2,self)
 	else
 	{

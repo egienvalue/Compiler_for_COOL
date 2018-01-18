@@ -2,8 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+// creat bool type for c 
 typedef enum { false, true } bool;
 
+// string list
 struct string_list_cell {
     char *head;
     struct string_list_cell *tail;
@@ -14,19 +16,26 @@ struct edge {
     char *right;
 };
 
-struct string_list_cell *p_visited_list = NULL;
-struct string_list_cell *t_visited_list = NULL;
-int cycle_flag = 0;
-int line_count = 0;
-int line_set_count = 0;
-int edge_count = 0;
+struct string_list_cell *p_visited_list = NULL;//permanent mark
+struct string_list_cell *t_visited_list = NULL;//temporary mark
+int cycle_flag = 0;// flag show the cycle in graph
+int line_count = 0;// lines count
+int line_set_count = 0;// vertices count
+int edge_count = 0;// edges count 
 
+// comparison funtion using in quick sort
+// sort the vertices and edges alphabetically 
 int reverse_comparison (const void *a_ptr, const void *b_ptr);
 int reverse_comparison_edges (const void *a_ptr, const void *b_ptr);
+
+// judge whether the string array contains a specifical string or not
 bool contains(struct string_list_cell *string_array, char *string);
 int dfs(char *current, struct edge *edgelist);
+
+// function to append element to the end of linked list
 struct string_list_cell* append(struct string_list_cell *string_array,
                                 char *string);
+// function print all the linked list
 int print_list(struct string_list_cell *string_array);
 
 
@@ -41,12 +50,13 @@ int main(void) {
         if (feof(stdin)) break;
         {
             struct string_list_cell *new_cell = malloc(sizeof(*new_cell));
-
             new_cell->head = strdup(line_buffer);
             new_cell->tail = lines;
             lines= new_cell;
             line_count++;
-
+			
+			// read lines to vertices, and remove duplicates
+			// make the vertices become a set
             if(!contains(lines_set, new_cell->head)) {
                 struct string_list_cell *new_vertice = malloc(sizeof(*new_vertice));
                 new_vertice->head = new_cell->head;
@@ -90,23 +100,10 @@ int main(void) {
         qsort(array, line_count, sizeof(array[0]), reverse_comparison);
         qsort(vertices,line_set_count, sizeof(vertices[0]), reverse_comparison);
         qsort(edges,edge_count, sizeof(edges[0]), reverse_comparison_edges);
-		/*
-		printf("\nVertices\n");
-		printf("line set count : %d\n", line_set_count);
-        for (i=0;i<line_set_count;i++) {
-            //if (vertices[i]!=NULL)
-            printf("%s", vertices[i]);
-        }
-		printf("\nEdges\n");
-		printf("edge count : %d\n", edge_count);
-        for (i=0;i<edge_count;i++) {
-            printf("%s := %s", edges[i].left, edges[i].right);
-        }
-		*/
+
         for (i=line_set_count-1;i>=0;i--) {	
             	dfs(vertices[i],edges);
         }
-		//printf("\nTopological sort\n");
         print_list(p_visited_list);
 
     }
@@ -136,6 +133,7 @@ bool contains(struct string_list_cell *string_array, char *string) {
         return true;
     return contains(string_array->tail, string);
 }
+
 struct string_list_cell* append(struct string_list_cell *string_array,
                                 char *string) {
     struct string_list_cell *new_cell = malloc(sizeof(*new_cell));
@@ -144,6 +142,7 @@ struct string_list_cell* append(struct string_list_cell *string_array,
     string_array= new_cell;
     return string_array;
 }
+
 int print_list(struct string_list_cell *string_array){
     if (string_array==NULL)
         return 0;
@@ -151,8 +150,8 @@ int print_list(struct string_list_cell *string_array){
     print_list(string_array->tail);
     //printf("%s", string_array->head);
     return 0;
-
 }
+
 int dfs(char *current, struct edge *edgelist) {
     int i=0;
     if (contains(p_visited_list, current))
@@ -163,12 +162,12 @@ int dfs(char *current, struct edge *edgelist) {
         exit(0);
 		return 0;
     }
-    t_visited_list = append(t_visited_list,current);
+    t_visited_list = append(t_visited_list,current);// add temporary mark
     for (i=edge_count-1;i>=0;i--){
         if(strcmp(current, edgelist[i].left)==0)
-            dfs(edgelist[i].right, edgelist);
+            dfs(edgelist[i].right, edgelist);// search adjecent vertices
     }
-    p_visited_list = append(p_visited_list,current);
+    p_visited_list = append(p_visited_list,current);//add permanent mark
     return 0;
 }
 

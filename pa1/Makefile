@@ -20,5 +20,5 @@ $(TARGET):$(OBJ)
 	$(CC) $(CFLAGS) $<
 
 clean:
-	rm -f $(TARGET) $(TARGET).exe
+	rm -f $(TARGET) $(TARGET)
 	rm -f *.o *.obj
