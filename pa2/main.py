@@ -124,18 +124,15 @@ states = (
 def t_COMENT(t):
     r'--'
     t.lexer.code_start = t.lexer.lexpos        # Record the starting position
-    t.lexer.level = 1
     t.lexer.begin('COMENT')              # Enter 'COMENT' state
 def t_COMENT_newline(t):
     r'\n'
-    t.lexer.level -= 1
     t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos]
     t.type = "COMENT"
     t.lexer.lineno += t.value.count('\n')
     t.lexer.begin('INITIAL')           
     return t
 def t_COMENT_eof(t):
-    t.lexer.level -= 1
     t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos]
     t.type = "COMENT"
     t.lexer.lineno += t.value.count('\n')
@@ -173,12 +170,15 @@ def t_COMMENT_rbrace(t):
          t.lexer.begin('INITIAL')           
          return t
 def t_COMMENT_eof(t):
-    print("ERROR: %d: Lexer: EOF in (* comment *)" % (t.lexer.lineno+1))
+    t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos]
+    t.type = "COMMENT"
+    t.lexer.lineno += t.value.count('\n')
+    print("ERROR: %d: Lexer: EOF in (* comment *)" % (t.lexer.lineno))
     exit(1)
     t.lexer.skip(1)
 
 # Ignored characters (whitespace)
-t_COMMENT_ignore = " \t\n\f\r\v"
+t_COMMENT_ignore = " \t\f\r\v"
 
 # skip bad chars
 def t_COMMENT_error(t):
