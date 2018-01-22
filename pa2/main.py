@@ -202,6 +202,13 @@ def t_string_end(t):
     r'(\\\\)*\"'
     t.lexer.level -= 1
     t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos-1]
+    for x in t.value:
+        if ord(x)==0:
+            print("ERROR: %d: LEXER: invalid character: \"" %
+                    (t.lexer.lineno))
+            exit(1)
+            t.lexer.skip(1)
+            
     if len(t.value) > 1024:
         print("ERROR: %d: Lexer: string constant is too long (%d > 1024)" %
                 (t.lexer.lineno,len(t.value)))
