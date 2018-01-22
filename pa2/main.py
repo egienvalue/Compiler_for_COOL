@@ -26,7 +26,9 @@ tokens = [
     'string',
     'tilde',
     'times',
-    'COMMENT'
+    'COMMENT',
+    'COMENT',
+    'type'
 ]
 
 reserved = {
@@ -48,11 +50,10 @@ reserved = {
     'pool' : 'pool',
     'then' : 'then',
     'true' : 'true',
-    'while' : 'while',
-    'SELF_TYPE':'type'
+    'while' : 'while'
 }
 
-tokens = tokens + list(reserved.values())
+tokens = list(reserved.values()) + tokens
 # Regular expression rules for simple tokens
 t_at = r'\@'
 t_colon = r'\:'
@@ -76,7 +77,14 @@ t_semi = r'\;'
 #t_string = r''    TODO
 t_tilde = r'\~'    
 t_times = r'\*'
-#t_type = r'[A-Z]\w+' TODO
+#t_type = r'SELF_TYPE' 
+
+# regular expression for type
+def t_type(t):
+    r'[A-Z][a-zA-Z_0-9]*'
+    t.type = reserved.get(t.value, 'type')
+    return t
+ 
 
 # A regular expression rule with some action code
 def t_integer(t):
@@ -90,15 +98,16 @@ def t_integer(t):
 		t.lexer.skip(1)
 
 # identifiers
+
 def t_identifier(t):
-	r'[a-zA-Z][a-zA-Z_0-9]*'
+	r'[a-z][a-zA-Z_0-9]*'
 	t.type = reserved.get(t.value, 'identifier')
 	return t
 
 # comments : comments need to be written in functions
 def t_COMENT(t):
 	r'--[^\n]*'
-	pass
+	return t
 
 # Declare the state
 states = (
@@ -131,7 +140,7 @@ def t_COMMENT_rbrace(t):
          return t
 
 # Ignored characters (whitespace)
-t_COMMENT_ignore = " \f\r\t\v"
+t_COMMENT_ignore = " \t"
 
 # skip bad chars
 def t_COMMENT_error(t):
@@ -171,6 +180,7 @@ def t_string_error(t):          # Special error handler for state 'bar'
     t.lexer.skip(1)
 
 t_string_ignore = ' \t'
+
 # Define a rule so we can track line numbers
 def t_newline(t):
 	r'\n+'
@@ -201,10 +211,10 @@ while True:
     tok = lexer.token()
     if not tok: 
         break      # No more input
-    if tok.type not in ['COMMENT']:
+    if tok.type not in ['COMMENT','COMENT']:
         out_string = out_string + str(tok.lineno) + "\n"
         out_string = out_string + str(tok.type) + "\n"
-    if tok.type in ['integer', 'identifier', 'string']:
+    if tok.type in ['integer', 'identifier', 'string','type']:
 	out_string = out_string + str(tok.value) + "\n"
 
 # Write to file
