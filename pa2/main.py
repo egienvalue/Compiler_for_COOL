@@ -80,9 +80,13 @@ t_times = r'\*'
 #t_type = r'SELF_TYPE' 
 
 # regular expression for type
+
 def t_type(t):
     r'[A-Z][a-zA-Z_0-9]*'
-    t.type = reserved.get(t.value, 'type')
+    temp = t.value.lower()
+    if temp == "true" or temp == "false":
+        return t
+    t.type = reserved.get(temp, 'type')
     return t
  
 
@@ -101,7 +105,8 @@ def t_integer(t):
 
 def t_identifier(t):
 	r'[a-z][a-zA-Z_0-9]*'
-	t.type = reserved.get(t.value, 'identifier')
+        temp = t.value.lower()
+	t.type = reserved.get(temp, 'identifier')
 	return t
 
 # comments : comments need to be written in functions
@@ -157,11 +162,11 @@ def t_string(t):
     t.lexer.begin('string')              # Enter 'ccode' state
 
 def t_string_slashquote(t):
-    r'\\\"'
-    t.lexer.skip(1)    
+    r'\\(\\\\)*\"'
+    t.lexer.begin('string')
 
 def t_string_end(t):
-    r'\"'
+    r'(\\\\)*\"'
     t.lexer.level -= 1
     t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos-1]
     t.type = "string"
@@ -169,8 +174,13 @@ def t_string_end(t):
     t.lexer.begin('INITIAL')
     return t
 
+def t_string_eof(t):
+    print("ERROR: %d: LEXER: invalid character: \"" % (t.lexer.lineno))
+    exit(1)
+    t.lexer.skip(1)
+
 def t_string_special(t):
-    r'\n' 
+    r'\n'
     print("ERROR: %d: LEXER: invalid character: \"" % (t.lexer.lineno))
     exit(1)
     t.lexer.skip(1)
