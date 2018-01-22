@@ -113,36 +113,36 @@ def t_identifier(t):
 # Declare the state
 states = (
   ('COMMENT','exclusive'),
-  ('COMENT','exclusive'),
+  #('COMENT','exclusive'),
   ('string','exclusive')
 )
 
 # comments : comments need to be written in functions
-#def t_COMENT(t):
-#    r'--[^\n]+'
-#    return t
 def t_COMENT(t):
-    r'--'
-    t.lexer.code_start = t.lexer.lexpos        # Record the starting position
-    t.lexer.begin('COMENT')              # Enter 'COMENT' state
-def t_COMENT_newline(t):
-    r'\n'
-    t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos]
-    t.type = "COMENT"
-    t.lexer.lineno += t.value.count('\n')
-    t.lexer.begin('INITIAL')           
+    r'--[^\n]*'
     return t
-def t_COMENT_eof(t):
-    t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos]
-    t.type = "COMENT"
-    t.lexer.lineno += t.value.count('\n')
-    t.lexer.begin('INITIAL')           
-    return t
-
-def t_COMENT_error(t):
-    t.lexer.skip(1)
-
-t_COMENT_ignore = " \t\f\r\v"
+#def t_COMENT(t):
+#    r'--'
+#    t.lexer.code_start = t.lexer.lexpos        # Record the starting position
+#    t.lexer.begin('COMENT')              # Enter 'COMENT' state
+#def t_COMENT_newline(t):
+#    r'\n'
+#    t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos]
+#    t.type = "COMENT"
+#    t.lexer.lineno += t.value.count('\n')
+#    t.lexer.begin('INITIAL')           
+#    return t
+#def t_COMENT_eof(t):
+#    t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos]
+#    t.type = "COMENT"
+#    t.lexer.lineno += t.value.count('\n')
+#    t.lexer.begin('INITIAL')           
+#    return t
+#
+#def t_COMENT_error(t):
+#    t.lexer.skip(1)
+#
+#t_COMENT_ignore = " \t\f\r\v"
 
 
 
