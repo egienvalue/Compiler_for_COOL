@@ -104,21 +104,50 @@ def t_integer(t):
 # identifiers
 
 def t_identifier(t):
-	r'[a-z][a-zA-Z_0-9]*'
-        temp = t.value.lower()
-	t.type = reserved.get(temp, 'identifier')
-	return t
+    r'[a-z][a-zA-Z_0-9]*'
+    temp = t.value.lower()
+    t.type = reserved.get(temp, 'identifier')
+    return t
 
-# comments : comments need to be written in functions
-def t_COMENT(t):
-	r'--[^\n]*'
-	return t
-
+    
 # Declare the state
 states = (
   ('COMMENT','exclusive'),
+  ('COMENT','exclusive'),
   ('string','exclusive')
 )
+
+# comments : comments need to be written in functions
+#def t_COMENT(t):
+#    r'--[^\n]+'
+#    return t
+def t_COMENT(t):
+    r'--'
+    t.lexer.code_start = t.lexer.lexpos        # Record the starting position
+    t.lexer.level = 1
+    t.lexer.begin('COMENT')              # Enter 'COMENT' state
+def t_COMENT_newline(t):
+    r'\n'
+    t.lexer.level -= 1
+    t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos]
+    t.type = "COMENT"
+    t.lexer.lineno += t.value.count('\n')
+    t.lexer.begin('INITIAL')           
+    return t
+def t_COMENT_eof(t):
+    t.lexer.level -= 1
+    t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos]
+    t.type = "COMENT"
+    t.lexer.lineno += t.value.count('\n')
+    t.lexer.begin('INITIAL')           
+    return t
+
+def t_COMENT_error(t):
+    t.lexer.skip(1)
+
+t_COMENT_ignore = " \t\f\r\v"
+
+
 
 # Match the first {. Enter ccode state.
 def t_COMMENT(t):
@@ -143,9 +172,13 @@ def t_COMMENT_rbrace(t):
          t.lexer.lineno += t.value.count('\n')
          t.lexer.begin('INITIAL')           
          return t
+def t_COMMENT_eof(t):
+    print("ERROR: %d: Lexer: EOF in (* comment *)" % (t.lexer.lineno+1))
+    exit(1)
+    t.lexer.skip(1)
 
 # Ignored characters (whitespace)
-t_COMMENT_ignore = " \t"
+t_COMMENT_ignore = " \t\n\f\r\v"
 
 # skip bad chars
 def t_COMMENT_error(t):
@@ -169,6 +202,11 @@ def t_string_end(t):
     r'(\\\\)*\"'
     t.lexer.level -= 1
     t.value = t.lexer.lexdata[t.lexer.code_start:t.lexer.lexpos-1]
+    if len(t.value) > 1024:
+        print("ERROR: %d: Lexer: string constant is too long (%d > 1024)" %
+                (t.lexer.lineno,len(t.value)))
+        exit(1)
+        t.lexer.skip(1)
     t.type = "string"
     t.lexer.lineno += t.value.count('\n')
     t.lexer.begin('INITIAL')
