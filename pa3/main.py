@@ -69,37 +69,37 @@ tokens = (
 	'RPAREN',
 	'TRUE',
 	'FALSE',
-        'ISVOID',
-        'AT',
-        'DOT',
-        'COMMA',
+	'ISVOID',
+	'AT',
+	'DOT',
+	'COMMA',
 	'RARROW',
-        'NEW',
-        'OF',
-        'IF',
-        'FI',
-        'ELSE',
-        'LOOP',
-        'POOL',
-        'WHILE',
-        'CASE',
-        'ESAC',
-        'INHERITS',
-        'THEN',
-        'LET',
-        'IN',
+	'NEW',
+	'OF',
+	'IF',
+	'FI',
+	'ELSE',
+	'LOOP',
+	'POOL',
+	'WHILE',
+	'CASE',
+	'ESAC',
+	'INHERITS',
+	'THEN',
+	'LET',
+	'IN',
 	)
 
 precedence = (
-        ('right', 'LARROW'),
+	('right', 'LARROW'),
 	('right', 'NOT'),
 	('nonassoc' , 'LE','LT','EQUALS'),
 	('left' , 'PLUS', 'MINUS'),
 	('left', 'DIVIDE', 'TIMES'),
-        ('right', 'ISVOID'),
+	('right', 'ISVOID'),
 	('right', 'TILDE'),
-        ('left', 'AT'),
-        ('left', 'DOT')
+	('left', 'AT'),
+	('left', 'DOT')
 )
 
 
@@ -119,8 +119,8 @@ def p_class_noinherit(p):
 	'class : CLASS type LBRACE featurelist RBRACE'
 	p[0] = (p.lineno(1), 'class_noinherit', p[2], p[4] )
 def p_class_inherit(p):
-        'class : CLASS type INHERITS type LBRACE featurelist RBRACE'
-        p[0] = (p.lineno(1), 'class_inherit', p[2], p[4], p[6])
+	'class : CLASS type INHERITS type LBRACE featurelist RBRACE'
+	p[0] = (p.lineno(1), 'class_inherit', p[2], p[4], p[6])
 
 #def p_empty(p):
 #        'empty : '
@@ -153,11 +153,11 @@ def p_featurelist_some(p):
 
 def p_feature_attributenoinit(p):
 	'feature : identifier COLON type'
-	p[0] = (p.lineno(1), 'attribute_no_init', p[1], p[3])
+	p[0] = ((p[1])[0], 'attribute_no_init', p[1], p[3])
 
 def p_feature_attributeinit(p):
 	'feature : identifier COLON type LARROW exp'
-	p[0] = (p.lineno(1), 'attribute_init', p[1] , p[3], p[5])
+	p[0] = ((p[1])[0], 'attribute_init', p[1] , p[3], p[5])
 #def p_feature_attribute(p):
 #        '''feature : identifier COLON type
 #                   | identifier COLON type LARROW exp'''
@@ -167,21 +167,21 @@ def p_feature_attributeinit(p):
 #            p[0] = (p.lineno(1), 'attribute_init', p[1] , p[3], p[5])
 
 def p_feature_method(p):
-        'feature : identifier LPAREN formalarglist RPAREN COLON type LBRACE exp RBRACE'
-        p[0] = (p.lineno(1), 'method', p[1], p[3], p[6], p[8])
+	'feature : identifier LPAREN formalarglist RPAREN COLON type LBRACE exp RBRACE'
+	p[0] = ((p[1])[0], 'method', p[1], p[3], p[6], p[8])
 
 def p_formalarglist_none(p):
-        'formalarglist : '
-        p[0] = []
+	'formalarglist : '
+	p[0] = []
 def p_formalarglist_some(p):
-        'formalarglist : formal moreformalarg'
-        p[0] = [p[1]] + p[2]
-def p_formalarglist_moreformalarg(p):
-        'moreformalarg : COMMA formal moreformalarg'
-        p[0] = [p[2]] + p[3]
+	'formalarglist : formal moreformalarg'
+	p[0] = [p[1]] + p[2]
+def p_formalarglist_moreformalarg(p):	
+	'moreformalarg : COMMA formal moreformalarg'
+	p[0] = [p[2]] + p[3]
 def p_formalarglist_nonemore(p):
-        'moreformalarg : '
-        p[0] = []
+	'moreformalarg : '
+	p[0] = []
 
 #def p_formallist_none(p):
 #        'formallist : '
@@ -230,7 +230,7 @@ def p_formal(p):
 
 def p_exp_assign(p):
         'exp : identifier LARROW exp'
-        p[0] = (p.lineno(1), 'assign', p[3])
+        p[0] = ((p[1])[0], 'assign', p[1], p[3])
 
 #def p_exp_exptypeid(p):
 #        '''exp      : exp DOT identifier LPAREN explist RPAREN 
@@ -298,10 +298,10 @@ def p_bindinglist_nonemore(p):
         p[0] = []
 def p_bindinginit(p) :
         'binding : identifier COLON type LARROW exp'
-        p[0] = (p.lineno(1), 'let_binding_init', p[1], p[3], p[5])
+        p[0] = ((p[1])[0], 'let_binding_init', p[1], p[3], p[5])
 def p_bindingnoinit(p) :
         'binding : identifier COLON type'
-        p[0] = (p.lineno(1), 'let_binding_no_init', p[1], p[3])
+        p[0] = ((p[1])[0], 'let_binding_no_init', p[1], p[3])
 
 def p_exp_let(p) :
         'exp : LET bindinglist IN exp'
@@ -317,7 +317,7 @@ def p_caselist_some(p):
 
 def p_casearg(p):
         'casearg : identifier COLON type RARROW exp'
-        p[0] = (p.lineno(1), 'casearg', p[1],p[3],p[5])
+        p[0] = ((p[1])[0], 'casearg', p[1],p[3],p[5])
 
 def p_exp_case(p) :
         'exp : CASE exp OF caselist ESAC'
@@ -365,11 +365,11 @@ def p_exp_eq(p):
 
 def p_exp_not(p):
 	'exp : NOT exp'
-	p[0] = ((p[1])[0], 'not', p[2])	
+	p[0] = (p.lineno(1), 'not', p[2])	
 
 def p_exp_group(p):
 	'exp : LPAREN exp RPAREN'
-	p[0] = ((p[1])[0], 'group', p[2])		
+	p[0] = (p.lineno(1), 'group', p[2])		
 
 def p_exp_integer(p):
 	'exp : INTEGER'
@@ -518,12 +518,12 @@ def print_feature(ast):
 		print_identifier(ast[2])
 		print_identifier(ast[3])
 		print_exp(ast[4])
-        elif ast[1] == 'method':
-                fout.write("method\n")
-                print_identifier(ast[2])
-                print_formallist(ast[3])
-                print_identifier(ast[4])
-                print_exp(ast[5])
+	elif ast[1] == 'method':
+           fout.write(ast[1] + "\n")
+           print_identifier(ast[2])
+           print_formallist(ast[3])
+           print_identifier(ast[4])
+           print_exp(ast[5])
 	else:
 		print "unhandled feature"
 		exit(1)
