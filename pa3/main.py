@@ -99,7 +99,7 @@ precedence = (
         ('right', 'ISVOID'),
 	('right', 'TILDE'),
         ('left', 'AT'),
-        ('left', 'DOT'),
+        ('left', 'DOT')
 )
 
 
@@ -252,17 +252,17 @@ def p_exparglist_nonemore(p):
         'moreexparg : '
         p[0] = []
 
-def p_exp_dynamicdispatch(p):
-        'exp : exp AT type DOT identifier LPAREN exparglist RPAREN'
-        p[0] = ((p[1])[0], 'dynamic_dispatch', p[1], p[3], p[5], p[7])
-
 def p_exp_staticdispatch(p):
+        'exp : exp AT type DOT identifier LPAREN exparglist RPAREN'
+        p[0] = ((p[1])[0], 'static_dispatch', p[1], p[3], p[5], p[7])
+
+def p_exp_dynamicdispatch(p):
         'exp : exp DOT identifier LPAREN exparglist RPAREN'
-        p[0] = ((p[1])[0], 'static_dispatch', p[1], p[3], p[5])
+        p[0] = ((p[1])[0], 'dynamic_dispatch', p[1], p[3], p[5])
 
 def p_exp_self_dispatch(p):
         'exp : identifier LPAREN exparglist RPAREN'
-        p[0] = (p.lineno(1), 'self_dispatch', p[1], p[3])
+        p[0] = ((p[1])[0], 'self_dispatch', p[1], p[3])
 
 def p_exp_ifstatement(p):
         'exp : IF exp THEN exp ELSE exp FI'
@@ -283,18 +283,6 @@ def p_explist_some(p):
 def p_exp_block(p):
         'exp : LBRACE explist RBRACE'
         p[0] = (p.lineno(1), 'block', p[2])
-
-#def p_exp_letstatement(p):
-#        '''exp              : LET letattribute commaletattribute IN exp
-#           attributenoinit  : identifier COLON type
-#           attributeinit    : identifier COLON type LARROW exp
-#           letattribute     : attributeinit
-#                            | attributenoinit
-#           commaletattribute : COMMA letattribute commaletattribute
-#                             | empty'''
-#        p[0] = (p.lineno(1), 'letstatement')
-#        for i in range(2,len(p),2):
-#            p[0] = p[0] + (p[i],)
 
 def p_bindinglist_none(p):
         'bindinglist : '
@@ -337,7 +325,7 @@ def p_exp_case(p) :
 
 def p_exp_newtype(p):
         'exp : NEW type'
-        p[0] = (p.lineno(1), p[2])
+        p[0] = (p.lineno(1), 'new', p[2])
 
 def p_exp_isvoid(p):
         'exp : ISVOID exp'
@@ -397,11 +385,11 @@ def p_exp_identifier(p):
 
 def p_exp_true(p):
 	'exp : TRUE'
-	p[0] = (p.lineno(1), p[1])	
+	p[0] = (p.lineno(1), 'true')	
 
 def p_exp_false(p):
 	'exp : FALSE'
-	p[0] = (p.lineno(1), p[1])
+	p[0] = (p.lineno(1), 'false')
 
 def p_error(p):
 	if p:
@@ -417,9 +405,11 @@ ast = parser.parse(lexer=pa2lexer)
 ast_filename = (sys.argv[1])[:-4] + "-ast"
 fout = open(ast_filename, 'w')
 
-def print_list(ast, print_element_function): # higher-order function
-	fout.write(str(len(ast)) + "\n")
-	for elem in ast:
+def print_list(ast, print_element_function): # higher-order function 
+        fout.write(str(len(ast)) + "\n")
+        if len(ast) ==0:
+            return
+        for elem in ast:
 		print_element_function(elem)
 
 def print_identifier(ast):
@@ -428,10 +418,8 @@ def print_identifier(ast):
 
 
 def print_exp(ast):
-        
-        if ast[1] in ['assign']:
-            print_identifier(ast[2])
-            print_exp(ast[3])
+        if ast[1] in ['group'] :
+            print_exp(ast[2])
             return
 	fout.write(str(ast[0]) + "\n")
 	if ast[1] in ['plus', 'times', 'minus', 'divide', 'le', 'lt','eq']:
@@ -451,11 +439,74 @@ def print_exp(ast):
                 fout.write(ast[1] + "\n")
                 print_identifier(ast[2])
         elif ast[1] in ['true', 'false']:
-                four.write(ast[1] + "\n")
-
+                fout.write(ast[1] + "\n")
+        elif ast[1] in ['static_dispatch']:
+                fout.write(ast[1] + "\n")
+                print_exp(ast[2])
+                print_identifier(ast[3])
+                print_identifier(ast[4])
+                print ast
+                print_list(ast[5], print_exp)
+        elif ast[1] in ['dynamic_dispatch']:
+                fout.write(ast[1] + "\n")
+                print_exp(ast[2])
+                print_identifier(ast[3])
+                print ast
+                print_list(ast[4], print_exp)
+        elif ast[1] in ['self_dispatch']:
+                fout.write(ast[1] + "\n")
+                print_identifier(ast[2])
+                print ast
+                print_list(ast[3], print_exp)
+        elif ast[1] in ['assign']:
+                fout.write(ast[1] + "\n")
+                print_identifier(ast[2])
+                print_exp(ast[3])
+        elif ast[1] in ['if'] :
+                fout.write(ast[1] + "\n")
+                print_exp(ast[2])
+                print_exp(ast[3])
+                print_exp(ast[4])
+        elif ast[1] in ['while'] :
+                fout.write(ast[1] + "\n")
+                print_exp(ast[2])
+                print_exp(ast[3])
+        elif ast[1] in ['block'] :
+                fout.write(ast[1] + "\n")
+                print_list(ast[2], print_exp)
+        elif ast[1] in ['new']:
+                fout.write(ast[1] + "\n")
+                print_identifier(ast[2])
+        elif ast[1] in ['let'] :
+                fout.write(ast[1] + "\n")
+                print ast
+                print_list(ast[2], print_binding)
+                print_exp(ast[3])
+        elif ast[1] in ['case'] :
+                fout.write(ast[1] + '\n')
+                print_exp(ast[2])
+                print ast
+                print_list(ast[3], print_casearg)
 	else:
 		print "unhandled expression"
 		exit(1)
+def print_casearg(ast):
+        if ast[1] == 'casearg' :
+            print_identifier(ast[2])
+            print_identifier(ast[3])
+            print_exp(ast[4])
+
+def print_binding(ast):
+        if ast[1] == 'let_binding_init' :
+            fout.write(ast[1] + "\n")
+            print_identifier(ast[2])
+            print_identifier(ast[3])
+            print_exp(ast[4])
+        elif ast[1] == 'let_binding_no_init' :
+            fout.write(ast[1] + "\n")
+            print_identifier(ast[2])
+            print_identifier(ast[3])
+
 
 def print_feature(ast):
 	if ast[1] == 'attribute_no_init':
@@ -482,8 +533,7 @@ def print_formallist(ast):
 
 def print_formal(ast):
         print_identifier(ast[2])
-        print_identifier(ast[3])
-
+        print_identifier(ast[3])        
 
 def print_class(ast):
         if ast[1] == 'class_noinherit' :
