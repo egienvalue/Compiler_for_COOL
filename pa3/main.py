@@ -305,6 +305,9 @@ def p_bindingnoinit(p) :
 
 def p_exp_let(p) :
         'exp : LET bindinglist IN exp'
+        if p[2] == []:
+			print "ERROR: ", p.lineno(1), ": Parser: parse error near ", p.type
+			exit(1)
         p[0] = (p.lineno(1), 'let', p[2], p[4])
 
 def p_caselist_none(p):
@@ -321,6 +324,9 @@ def p_casearg(p):
 
 def p_exp_case(p) :
         'exp : CASE exp OF caselist ESAC'
+        if p[4] == []:
+			print "ERROR: ", p.lineno(1), ": Parser: parse error near ", p.type
+			exit(1)
         p[0] = (p.lineno(1), 'case', p[2], p[4])
 
 def p_exp_newtype(p):
