@@ -1,5 +1,7 @@
 # parser for pA3 for cool
-
+'''
+Part 0. Read from file and get tokens
+'''
 import sys
 from lex import LexToken
 import yacc as yacc # the PLY parser
@@ -42,7 +44,10 @@ class PA2Lexer(object):
 		return tok
 
 pa2lexer = PA2Lexer()
-
+'''
+Part 1. Define tokens and precedence. For the tokens, we can get directly from pA2, 
+for precedence, check https://web.eecs.umich.edu/~weimerw/2015-4610/cool-manual/node40.html
+'''
 # Define our PA3 parser
 
 tokens = (
@@ -99,14 +104,18 @@ precedence = (
 	('right', 'ISVOID'),
 	('right', 'TILDE'),
 	('left', 'AT'),
-	('left', 'DOT')
+	('left', 'DOT'),
 )
 
-
+'''
+Part 2. Define matching rules, refer to the picture on https://web.eecs.umich.edu/~weimerw/2015-4610/cool-manual/node39.html
+'''
+# cool syntax matches the whole program
 def p_program_classlist(p):
 	'program : classlist'
 	p[0] = p[1]
 
+# cool syntax matches one or more classes in the program
 def p_classlist_none(p):
 	'classlist : '
 	p[0] = []
@@ -122,27 +131,7 @@ def p_class_inherit(p):
 	'class : CLASS type INHERITS type LBRACE featurelist RBRACE'
 	p[0] = (p.lineno(1), 'class_inherit', p[2], p[4], p[6])
 
-#def p_empty(p):
-#        'empty : '
-#        pass
-
-def p_type(p):
-	'type : TYPE'
-	p[0] = (p.lineno(1), p[1])
-
-def p_identifier(p):
-	'identifier : IDENTIFIER'
-	p[0] = (p.lineno(1), p[1])
-
-#def p_string(p):
-#        'string : STRING'
-#        p[0] = (p.lineno(1), p[1])
-#
-#def p_integer(p):
-#        'integer : INTEGER'
-#        p[0] = (p.lineno(1), p[1])
-
-
+# cool syntax matches feature sentences
 def p_featurelist_none(p):
 	'featurelist : '
 	p[0] =[]
@@ -158,87 +147,37 @@ def p_feature_attributenoinit(p):
 def p_feature_attributeinit(p):
 	'feature : identifier COLON type LARROW exp'
 	p[0] = ((p[1])[0], 'attribute_init', p[1] , p[3], p[5])
-#def p_feature_attribute(p):
-#        '''feature : identifier COLON type
-#                   | identifier COLON type LARROW exp'''
-#        if len(p) <=4 : 
-#            p[0] = (p.lineno(1), 'attribute_no_init', p[1], p[3])
-#        else :
-#            p[0] = (p.lineno(1), 'attribute_init', p[1] , p[3], p[5])
 
 def p_feature_method(p):
 	'feature : identifier LPAREN formalarglist RPAREN COLON type LBRACE exp RBRACE'
 	p[0] = ((p[1])[0], 'method', p[1], p[3], p[6], p[8])
 
+# cool syntax matches formal, including formal list
 def p_formalarglist_none(p):
 	'formalarglist : '
 	p[0] = []
+
 def p_formalarglist_some(p):
 	'formalarglist : formal moreformalarg'
 	p[0] = [p[1]] + p[2]
+
 def p_formalarglist_moreformalarg(p):	
 	'moreformalarg : COMMA formal moreformalarg'
 	p[0] = [p[2]] + p[3]
+
 def p_formalarglist_nonemore(p):
 	'moreformalarg : '
 	p[0] = []
-
-#def p_formallist_none(p):
-#        'formallist : '
-#        p[0] = []
-#def p_formallist_some(p):
-#        '''formallist   : formal moreformal
-#            moreformal  : COMMA formal moreformal
-#                        | formallist'''
-#        p[0] = [p[1]]
-#        for i in range(3,len(p),2):
-#            p[0] = p[0] + [p[i]]
 
 def p_formal(p):
         'formal : identifier COLON type'
         p[0] = (p.lineno(1), 'formal', p[1], p[3])
 
-#def p_explist(p):
-#        '''explist : exp moreexp
-#                      | empty
-#            moreexp : COMMA explist exp
-#                       | empty'''
-#        if len(p) == 3 :
-#            p[0] = [p[1]]
-#        elif len(p) == 2 :
-#            p[0] = []
-#        else :
-#            p[0] = [p[1]] + p[3] + [p[4]]
-
-
-#def p_explist_none(p):
-#        'explist : '
-#        p[0] = []
-#def p_explist_some(p):
-#        '''explist   : exp moreexp
-#            moreexp  : COMMA exp moreexp
-#                     | empty'''
-#        p[0] = [p[1]]
-#        for i in range(3,len(p),2):
-#            p[0] = p[0] + [p[i]]
-#
-#def p_explist_more(p):
-#        '''moreexp : COMMA exp moreexp
-#                   | empty'''
-#        p[0]
-
-
+# cool syntax matches expression, this is the most complex one since there are lots of probabilities
 def p_exp_assign(p):
         'exp : identifier LARROW exp'
         p[0] = ((p[1])[0], 'assign', p[1], p[3])
 
-#def p_exp_exptypeid(p):
-#        '''exp      : exp DOT identifier LPAREN explist RPAREN 
-#                    | exp AT type DOT identifier LPAREN explist RPAREN'''
-#        if p[2] == '.' :
-#                p[0] = ((p[1])[0], 'exptypeid_no_at', p[1], p[3], p[5])
-#        elif p[2] == '@' :
-#                p[0] = ((p[1])[0], 'exptypeid_yes_at', p[1], p[3], p[5], p[7])
 def p_exparglist_none(p):
         'exparglist : '
         p[0] = []
@@ -284,49 +223,11 @@ def p_exp_block(p):
         'exp : LBRACE explist RBRACE'
         p[0] = (p.lineno(1), 'block', p[2])
 
-def p_bindinglist_none(p):
-        'bindinglist : '
-        p[0] = []
-def p_bindinglist_some(p):
-        'bindinglist : binding morebinding'
-        p[0] = [p[1]] + p[2]
-def p_bindinglist_moreformalarg(p):
-        'morebinding : COMMA binding morebinding'
-        p[0] = [p[2]] + p[3]
-def p_bindinglist_nonemore(p):
-        'morebinding : '
-        p[0] = []
-def p_bindinginit(p) :
-        'binding : identifier COLON type LARROW exp'
-        p[0] = ((p[1])[0], 'let_binding_init', p[1], p[3], p[5])
-def p_bindingnoinit(p) :
-        'binding : identifier COLON type'
-        p[0] = ((p[1])[0], 'let_binding_no_init', p[1], p[3])
-
 def p_exp_let(p) :
         'exp : LET bindinglist IN exp'
-        if p[2] == []:
-			print "ERROR: ", p.lineno(1), ": Parser: parse error near ", p.type
-			exit(1)
         p[0] = (p.lineno(1), 'let', p[2], p[4])
-
-def p_caselist_none(p):
-	'caselist : '
-	p[0] = []
-
-def p_caselist_some(p):
-	'caselist : casearg SEMI caselist'
-	p[0] = [p[1]] + p[3]
-
-def p_casearg(p):
-        'casearg : identifier COLON type RARROW exp'
-        p[0] = ((p[1])[0], 'casearg', p[1],p[3],p[5])
-
 def p_exp_case(p) :
         'exp : CASE exp OF caselist ESAC'
-        if p[4] == []:
-			print "ERROR: ", p.lineno(1), ": Parser: parse error near ", p.type
-			exit(1)
         p[0] = (p.lineno(1), 'case', p[2], p[4])
 
 def p_exp_newtype(p):
@@ -397,6 +298,54 @@ def p_exp_false(p):
 	'exp : FALSE'
 	p[0] = (p.lineno(1), 'false')
 
+# cool syntax matches binding list, i.e. ID: type [<- exp], which is common in expressions
+def p_bindinglist_some(p):
+        'bindinglist : binding morebinding'
+        p[0] = [p[1]] + p[2]
+
+def p_bindinglist_moreformalarg(p):
+        'morebinding : COMMA binding morebinding'
+        p[0] = [p[2]] + p[3]
+
+def p_bindinglist_nonemore(p):
+        'morebinding : '
+        p[0] = []
+
+def p_bindinginit(p) :
+        'binding : identifier COLON type LARROW exp'
+        p[0] = ((p[1])[0], 'let_binding_init', p[1], p[3], p[5])
+
+def p_bindingnoinit(p) :
+        'binding : identifier COLON type'
+        p[0] = ((p[1])[0], 'let_binding_no_init', p[1], p[3])
+
+# cool syntax matches caselists, which is common in expressions
+def p_caselist_some(p):
+	'caselist : casearg SEMI morecasearg'
+	p[0] = [p[1]] + p[3]
+        
+def p_caselist_more(p):
+        'morecasearg : casearg SEMI morecasearg'
+        p[0] = [p[1]] + p[3]
+
+def p_caselist_nomore(p):
+        'morecasearg : '
+        p[0] = []
+
+def p_casearg(p):
+        'casearg : identifier COLON type RARROW exp'
+        p[0] = ((p[1])[0], 'casearg', p[1],p[3],p[5])
+
+# cool syntax matche type and identifier, which is common in expressions
+def p_type(p):
+	'type : TYPE'
+	p[0] = (p.lineno(1), p[1])
+
+def p_identifier(p):
+	'identifier : IDENTIFIER'
+	p[0] = (p.lineno(1), p[1])
+
+# error catching rules
 def p_error(p):
 	if p:
 		print "ERROR: ", p.lineno, ": Parser: parse error near ", p.type
@@ -407,22 +356,25 @@ def p_error(p):
 parser = yacc.yacc()
 ast = parser.parse(lexer=pa2lexer)
 
+'''
+Part 3. Output
+'''
+
 #output PA3 CL-AST file
 ast_filename = (sys.argv[1])[:-4] + "-ast"
 fout = open(ast_filename, 'w')
-
+# print_list used to print one or more arguments, print all arguments in the list using any print method.
 def print_list(ast, print_element_function): # higher-order function 
         fout.write(str(len(ast)) + "\n")
         if len(ast) ==0:
             return
         for elem in ast:
 		print_element_function(elem)
-
+# print_identifier used to print identifiers
 def print_identifier(ast):
 	fout.write(str(ast[0]) + "\n")
 	fout.write(ast[1] + "\n")
-
-
+# print_exp used to print expressions
 def print_exp(ast):
         if ast[1] in ['group'] :
             print_exp(ast[2])
@@ -451,18 +403,15 @@ def print_exp(ast):
                 print_exp(ast[2])
                 print_identifier(ast[3])
                 print_identifier(ast[4])
-                print ast
                 print_list(ast[5], print_exp)
         elif ast[1] in ['dynamic_dispatch']:
                 fout.write(ast[1] + "\n")
                 print_exp(ast[2])
                 print_identifier(ast[3])
-                print ast
                 print_list(ast[4], print_exp)
         elif ast[1] in ['self_dispatch']:
                 fout.write(ast[1] + "\n")
                 print_identifier(ast[2])
-                print ast
                 print_list(ast[3], print_exp)
         elif ast[1] in ['assign']:
                 fout.write(ast[1] + "\n")
@@ -485,23 +434,22 @@ def print_exp(ast):
                 print_identifier(ast[2])
         elif ast[1] in ['let'] :
                 fout.write(ast[1] + "\n")
-                print ast
                 print_list(ast[2], print_binding)
                 print_exp(ast[3])
         elif ast[1] in ['case'] :
                 fout.write(ast[1] + '\n')
                 print_exp(ast[2])
-                print ast
                 print_list(ast[3], print_casearg)
 	else:
 		print "unhandled expression"
 		exit(1)
+# print_casearg used to print case lists
 def print_casearg(ast):
         if ast[1] == 'casearg' :
             print_identifier(ast[2])
             print_identifier(ast[3])
             print_exp(ast[4])
-
+# print_binding used to print bindings
 def print_binding(ast):
         if ast[1] == 'let_binding_init' :
             fout.write(ast[1] + "\n")
@@ -512,18 +460,17 @@ def print_binding(ast):
             fout.write(ast[1] + "\n")
             print_identifier(ast[2])
             print_identifier(ast[3])
-
-
+# print_feature used to print features
 def print_feature(ast):
 	if ast[1] == 'attribute_no_init':
-		fout.write("attribute_no_init\n")
-		print_identifier(ast[2])
-		print_identifier(ast[3])
+	    fout.write("attribute_no_init\n")
+	    print_identifier(ast[2])
+	    print_identifier(ast[3])
 	elif ast[1] == 'attribute_init':
-		fout.write("attribute_init\n")
-		print_identifier(ast[2])
-		print_identifier(ast[3])
-		print_exp(ast[4])
+	    fout.write("attribute_init\n")
+	    print_identifier(ast[2])
+	    print_identifier(ast[3])
+	    print_exp(ast[4])
 	elif ast[1] == 'method':
            fout.write(ast[1] + "\n")
            print_identifier(ast[2])
@@ -531,16 +478,16 @@ def print_feature(ast):
            print_identifier(ast[4])
            print_exp(ast[5])
 	else:
-		print "unhandled feature"
-		exit(1)
-
+	    print "unhandled feature"
+	    exit(1)
+# print_formalist used to print formal lists
 def print_formallist(ast):
         print_list(ast, print_formal)
-
+# print_formal used to print formals
 def print_formal(ast):
         print_identifier(ast[2])
         print_identifier(ast[3])        
-
+# print the one class
 def print_class(ast):
         if ast[1] == 'class_noinherit' :
 	    print_identifier(ast[2])
@@ -551,11 +498,10 @@ def print_class(ast):
             fout.write("inherits\n")
             print_identifier(ast[3])
             print_list(ast[4], print_feature)
-            
-
+# print the whole program
 def print_program(ast):
 	print_list(ast, print_class)
-
+# call the print_program method, and it will call every detailed print functions automatically!
 print_program(ast)
 
 fout.close()
