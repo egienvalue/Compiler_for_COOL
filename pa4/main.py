@@ -104,8 +104,7 @@ class Assign(Expression):
     def __str__(self):
         ret = self.s()
         ret += "assign\n"
-        ret += self.ident.line_num + "\n"
-        ret += self.ident.ident + "\n"
+        ret += str(self.ident)
         ret += str(self.exp)
 
         return ret
@@ -258,7 +257,7 @@ class If(Expression):
     else_body = None
 
     def __init__ (self, _line_num, _predicate, _then_body, _else_body):
-        Expression.__init__(self, _line_num, _predicate, _then_body, _else_body)
+        Expression.__init__(self, _line_num)
         self.predicate = _predicate
         self.then_body = _then_body
         self.else_body = _else_body
@@ -298,7 +297,7 @@ class Block(Expression):
     def __str__(self):
         ret = self.s()
         ret += "block\n"
-        for exp in exp_list:
+        for exp in self.exp_list:
             ret += str(exp)
 
         return ret
@@ -312,7 +311,7 @@ class Isvoid(Expression):
     def __str__(self):
         ret = self.s()
         ret += "isvoid\n"
-        ret += str(exp)
+        ret += str(self.exp)
 
         return ret
 
@@ -416,7 +415,7 @@ class Le(Expression):
         ret += str(self.lhs)
         ret += str(self.rhs)
 
-        return ret\
+        return ret
 
 class Eq(Expression):
     lhs = None
@@ -467,7 +466,7 @@ class Formal(object):
     formal_name = None
     formal_type = None
 
-    def __init__(self, formal_name, _formal_type):
+    def __init__(self, _formal_name, _formal_type):
         self.formal_name = _formal_name
         self.formal_type = _formal_type
 
@@ -606,6 +605,12 @@ def read_binding():
         binding_type_ident = read_identifier() 
         return Binding(binding_var_ident,binding_type_ident,False, None)
 
+def read_case_elem():
+    case_elem_var = read_identifier()
+    case_elem_type = read_identifier()
+    case_elem_body = read_exp()
+    return Case_element(case_elem_var,case_elem_type,case_elem_body)
+
 def read_exp():
     line_number = get_line()
     exp_name = get_line()
@@ -613,8 +618,26 @@ def read_exp():
     if exp_name == 'assign':
         assignee = read_identifier()
         rhs = read_exp()
+        return Assign(line_number, assignee, rhs)
 
-        return Assign(exp_name, assignee, rhs)
+# edit by Jun
+    elif exp_name == 'let':
+        num_bindings = int(get_line())
+        binding_list = []
+        for i in range(num_bindings):
+            binding_list.append(read_binding())
+        let_body = read_exp()
+        return Let(line_number, binding_list, let_body)
+      
+# edit by Jun
+    elif exp_name == 'case':
+        case_exp = read_exp()
+        num_case_elem = int(get_line())
+        case_elem_list = []
+        for i in range(num_case_elem):
+           case_elem_list.append(read_case_elem())
+        return Case(line_number, case_exp, case_elem_list)
+
 
     elif exp_name == 'dynamic_dispatch':
         obj_name = read_exp()
@@ -624,7 +647,7 @@ def read_exp():
         for i in range(num_args):
             args.append(read_exp())
 
-        return Dynamic_Dispatch(exp_name, obj_name, method_name, args)
+        return Dynamic_Dispatch(line_number, obj_name, method_name, args)
 
     elif exp_name == 'static dispatch':
         obj_name = read_exp()
@@ -633,7 +656,7 @@ def read_exp():
         for i in range(num_args):
             args.append(read_exp())
 
-        return Static_Dispatch(exp_name, obj_name, type_name, method_name, args)
+        return Static_Dispatch(line_number, obj_name, type_name, method_name, args)
 
     elif exp_name == 'self_dispatch':
         method_name = read_identifier()
@@ -642,20 +665,20 @@ def read_exp():
         for i in range(num_args):
             args.append(read_exp())
 
-        return Self_Dispatch(exp_name, method_name, args)
+        return Self_Dispatch(line_number, method_name, args)
 
     elif exp_name == 'if':
         predicate = read_exp()
         then_body = read_exp()
         else_body = read_exp()
 
-        return  If(exp_name, predicate, then_body, else_body)
+        return  If(line_number, predicate, then_body, else_body)
 
     elif exp_name == 'while':
         predicate = read_exp()
         body_exp = read_exp()
 
-        return While(exp_name,predicate, body_exp)
+        return While(line_number,predicate, body_exp)
 
     elif exp_name == 'block':
         num_exps = int(get_line())
@@ -663,56 +686,56 @@ def read_exp():
         for i in range(num_exps):
             exps.append(read_exp())
 
-        return Block(exp_name, exps)
+        return Block(line_number, exps)
 
     elif exp_name == 'new':
-        return New(exp_name, read_identifier())
+        return New(line_number, read_identifier())
 
 
     elif exp_name == 'isvoid':
-        return (exp_name, read_exp())
+        return (line_number, read_exp())
 
     elif exp_name == 'plus':
-        return Plus(exp_name, read_exp(), read_exp())
+        return Plus(line_number, read_exp(), read_exp())
 
     elif exp_name == 'minus':
-        return Minus(exp_name, read_exp(), read_exp())
+        return Minus(line_number, read_exp(), read_exp())
 
     elif exp_name == 'times':
-        return Times(exp_name, read_exp(), read_exp())
+        return Times(line_number, read_exp(), read_exp())
 
     elif exp_name == 'divide':
-        return Divide(exp_name, read_exp(), read_exp())
+        return Divide(line_number, read_exp(), read_exp())
 
     elif exp_name == 'lt':
-        return Lt(exp_name, read_exp(), read_exp())
+        return Lt(line_number, read_exp(), read_exp())
 
     elif exp_name == 'le':
-        return Le(exp_name, read_exp(), read_exp())
+        return Le(line_number, read_exp(), read_exp())
 
     elif exp_name == 'eq':
-        return Eq(exp_name, read_exp(), read_exp())
+        return Eq(line_number, read_exp(), read_exp())
 
     elif exp_name == 'not':
-        return Not(exp_name, read_exp())
+        return Not(line_number, read_exp())
 
     elif exp_name == 'negate':
-        return Negate(exp_name, read_exp())
+        return Negate(line_number, read_exp())
 
     elif exp_name == 'integer':
-        return (exp_name, int(get_line()))
+        return (line_number, int(get_line()))
 
     elif exp_name == 'string':
-        return (exp_name, get_line())
+        return (line_number, get_line())
 
     elif exp_name == 'identifier':
-        return (exp_name, read_identifier())
+        return (line_number, read_identifier())
 
     elif exp_name == 'true':
-        return (exp_name)
+        return (line_number)
 
     elif exp_name =='false':
-        return (exp_name)
+        return (line_number)
 
 def read_feature():
     feature_kind = get_line()
