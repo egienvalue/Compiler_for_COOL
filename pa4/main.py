@@ -102,12 +102,89 @@ class Assign(Expression):
         self.exp = _exp
 
     def __str__(self):
-        ret += self.s()
+        ret = self.s()
         ret += "assign\n"
         ret += self.ident.line_num + "\n"
         ret += self.ident.ident + "\n"
         ret += str(self.exp)
 
+        return ret
+
+# edit by Jun
+class Let(Expression):
+    binding_list = []
+    exp = None
+
+    def __init__(self, _line_num, _binding_list, _exp):
+        Expression.__init__(self, _line_num)
+        self.binding_list = _binding_list
+        self.exp = _exp
+
+    def __str__(self):
+        ret = self.s()
+        ret += "let\n"
+        for binding in self.binding_list :
+            ret += str(binding)
+        ret += str(self.exp)
+        return ret
+
+# edit by Jun
+class Binding(Expression):
+    var_ident = None
+    type_ident = None
+    initialization = None
+    value_exp = None
+
+    def __init__(self, _var_ident, _type_ident, _initialization, _value_exp):
+        self.var_ident = _var_ident
+        self.type_ident = _type_ident
+        self.initialization = _initialization
+        self.value_exp = _value_exp
+    
+    def __str__(self):
+        if self.initialization:
+            ret = "let_binding_init\n"
+        else :
+            ret = "let_binding_no_init\n"
+        ret += str(self.var_ident)
+        ret += str(self.type_ident)
+        if self.initialization:
+            ret += str(self.value_exp)
+        return ret
+
+# edit by Jun
+class Case(Expression):
+    exp = None
+    element_list = []
+    
+    def __init__(self, _line_num, _exp, _element_list):
+        Expression.__init__(self, _line_num)
+        self.exp = _exp
+        self.element_list = _element_list
+
+    def __str__(self):
+        ret = self.s()
+        ret += "case\n"
+        ret += str(self.exp)
+        for element in element_list:
+            ret += str(element)
+        return ret
+
+# edit by Jun
+class Case_element(Expression):
+    var_ident = None
+    type_ident = None
+    body_exp = None
+
+    def __init__(self, _var_ident, _type_ident, _body_exp):
+        self.var_ident = _var_ident
+        self.type_ident = _type_ident
+        self.body_exp = _body_exp
+    
+    def __str__(self):
+        ret = str(self.var_ident)
+        ret += str(self.type_ident)
+        ret += str(self.body_exp)
         return ret
 
 class Dynamic_Dispatch(Expression):
@@ -395,7 +472,7 @@ class Formal(object):
         self.formal_type = _formal_type
 
     def __str__(self):
-        ret += str(self.formal_name)
+        ret = str(self.formal_name)
         ret += str(self.formal_type)
 
         return ret
@@ -515,6 +592,19 @@ def read_formal():
     formal_type = read_identifier()
 
     return Formal(formal_name, formal_type)
+
+def read_binding():
+    binding_kind = get_line()
+    if binding_kind == "let_binding_init" :
+        binding_var_ident = read_identifier()
+        binding_type_ident = read_identifier()
+        binding_value_exp = read_exp()
+        return Binding(binding_var_ident,binding_type_ident, True, \
+                binding_value_exp)
+    elif binding_kind == "let_binding_no_init":
+        binding_var_ident = read_identifier()
+        binding_type_ident = read_identifier() 
+        return Binding(binding_var_ident,binding_type_ident,False, None)
 
 def read_exp():
     line_number = get_line()
