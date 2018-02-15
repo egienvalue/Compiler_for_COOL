@@ -5,6 +5,8 @@ import pprint
 
 ast_lines = []
 class_list = []
+type_filename =  "my_" + (sys.argv[1])[:-4] + "-type"
+fout = open(type_filename, 'w')
 
 # define multiple classes
 class Expression(object):
@@ -12,8 +14,8 @@ class Expression(object):
     exp_type = "No_TYPE"
 
     def s(self):
-        ret = self.line_num + "\n"
-        ret += self.exp_type + "\n"
+        ret = str(self.line_num) + "\n"
+        ret += str(self.exp_type) + "\n"
         return ret
 
     def __init__(self, _line_num):
@@ -32,7 +34,8 @@ class Integer(Expression):
 
     def __str__(self):
         ret = self.s()
-        ret += "Integer\n" + str(self.int_val + "\n")
+        ret += "integer\n" 
+        ret += str(self.int_val)+ "\n"
         return ret
 
 class String(Expression):
@@ -45,7 +48,8 @@ class String(Expression):
 
     def __str__(self):
         ret = self.s()
-        ret += "String\n" + self.str_val + "\n"
+        ret += "string\n" 
+        ret += str(self.str_val) + "\n"
         return ret
 
 class TrueExp(Expression):
@@ -71,12 +75,13 @@ class FalseExp(Expression):
 class IdentifierExp(Expression):
     ident = None
     def __init__(self, _line_num, _ident):
-        Expression.__init__(sel,_line_num)
+        Expression.__init__(self,_line_num)
         self.ident = _ident
 
     def __str__(self):
         ret = self.s()
-        ret += "identifier\n" + str(self.ident)
+        ret += "identifier\n" 
+        ret += str(self.ident)
         return ret
 
 class New(Expression):
@@ -89,7 +94,8 @@ class New(Expression):
 
     def __str__(self):
         ret = self.s()
-        ret += "new\n" + str(self.ident)
+        ret += "new\n"
+        ret += str(self.ident)
         return ret
 
 class Assign(Expression):
@@ -122,6 +128,7 @@ class Let(Expression):
     def __str__(self):
         ret = self.s()
         ret += "let\n"
+        ret += str(len(self.binding_list)) + "\n"
         for binding in self.binding_list :
             ret += str(binding)
         ret += str(self.exp)
@@ -165,6 +172,7 @@ class Case(Expression):
         ret = self.s()
         ret += "case\n"
         ret += str(self.exp)
+        ret += str(len(self.element_list)) + "\n"
         for element in element_list:
             ret += str(element)
         return ret
@@ -297,6 +305,7 @@ class Block(Expression):
     def __str__(self):
         ret = self.s()
         ret += "block\n"
+        ret += str(len(self.exp_list)) + "\n"
         for exp in self.exp_list:
             ret += str(exp)
 
@@ -305,7 +314,7 @@ class Block(Expression):
 class Isvoid(Expression):
     exp = None
     def __init__(self, _line_num, _exp):
-        Expression.__init__(self, _exp)
+        Expression.__init__(self, _line_num)
         self.exp = _exp
 
     def __str__(self):
@@ -496,7 +505,7 @@ class Attribute(object):
         if self.initialization:
             ret += "attribute_init\n"
         else:
-            ret += "Attribute_no_init\n"
+            ret += "attribute_no_init\n"
 
         ret += str(self.attr_name)
         ret += str(self.attr_type)
@@ -514,15 +523,15 @@ class identifier(object):
         self.ident = _ident
 
     def __str__(self):
-        ret = self.line_num + "\n" + self.ident + "\n"
+        ret = str(self.line_num) + "\n" + str(self.ident) + "\n"
         return ret
 
     def __repr__(self):
         return str(self)
 class Method(object):
-    method_name = ""
+    method_name = None
     formals = []
-    method_type = ""
+    method_type = None
     body_exp = None
 
     def __init__(self, _method_name, _formals, _method_type, _body_exp):
@@ -693,7 +702,7 @@ def read_exp():
 
 
     elif exp_name == 'isvoid':
-        return (line_number, read_exp())
+        return Isvoid(line_number, read_exp())
 
     elif exp_name == 'plus':
         return Plus(line_number, read_exp(), read_exp())
@@ -723,19 +732,19 @@ def read_exp():
         return Negate(line_number, read_exp())
 
     elif exp_name == 'integer':
-        return (line_number, int(get_line()))
+        return Integer(line_number, int(get_line()))
 
     elif exp_name == 'string':
-        return (line_number, get_line())
+        return String(line_number, get_line())
 
     elif exp_name == 'identifier':
-        return (line_number, read_identifier())
+        return IdentifierExp(line_number, read_identifier())
 
     elif exp_name == 'true':
-        return (line_number)
+        return TrueExp(line_number)
 
     elif exp_name =='false':
-        return (line_number)
+        return FalseExp(line_number)
 
 def read_feature():
     feature_kind = get_line()
@@ -793,6 +802,533 @@ def read_ast():
         class_list.append(read_class())
 
     return class_list
+  
+
+
+
+#def print_parent_method (overriden_method_list, cls, class_list, num_method):
+#    
+#    method_count = 0
+#    if (cls.inherits_iden == None):
+#
+#        for method in cls.methods:
+#            if method not in [x.method_name for x in overriden_method_list] :
+#                method_count += 1
+#        print num_method + method_count
+#        for method in cls.methods:
+#            if method not in overriden_method_list :
+#                print method.method_name
+#                print str(len(method.formals))
+#                for formal in method.formals:
+#                    print formal.formal_name
+#    elif (cls.inherits_iden != None and cls.inherits_iden.ident not in
+#            ["IO","Object", "Int", "String", "Bool"]) :
+#        for method in cls.methods:
+#            if method not in [x.method_name for x in overriden_method_list] :
+#                method_count += 1
+#        for method in cls.methods:
+#            if check_overriden(method, filter(lambda x :
+#            x.name_iden.ident==cls.inherits_iden.ident, class_list)[0],
+#            class_list) :
+#                overriden_method_list.append(method)
+#
+#        print_method(overriden_method_list, filter(lambda x :
+#            x.name_iden.ident==cls.inherits_iden.ident, class_list)[0],
+#            class_list, method_count)
+#
+#    for method in overriden_method_list:
+#        print method_name
+#        print str(len(method.formals))
+#        for formal in method.formals:
+#            print formal.formal_name
+#    for method in cls.methods:
+#        if method not in overriden_method_list:
+#            print method_name
+#            print str(len(method.formals))
+#            for formal in method.formals:
+#                print formal.formal_name
+#
+#
+#def print_method(overriden_method_list, cls, class_list, num_method):
+#    method_count = 0
+#    if (cls.inherits_iden == None):
+#        for method in cls.methods:
+#            if method not in [x.method_name for x in overriden_method_list] :
+#                method_count += 1
+#        print num_method + method_count
+#        for method in cls.methods:
+#            if method not in overriden_method_list :
+#                print method.method_name
+#                print str(len(method.formals))
+#                for formal in method.formals:
+#                    print formal.formal_name
+#    elif (cls.inherits_iden != None and cls.inherits_iden.ident not in
+#            ["IO","Object", "Int", "String", "Bool"]) :
+#        for method in cls.methods:
+#            if method not in [x.method_name for x in overriden_method_list] :
+#                method_count += 1
+#        for method in cls.methods:
+#            if check_overriden(method, filter(lambda x :
+#            x.name_iden.ident==cls.inherits_iden.ident, class_list)[0],
+#            class_list) :
+#                overriden_method_list.append(method)
+#
+#        print_method(overriden_method_list, filter(lambda x :
+#            x.name_iden.ident==cls.inherits_iden.ident, class_list)[0],
+#            class_list, method_count)
+#
+#    for method in overriden_method_list:
+#        print method_name
+#        print str(len(method.formals))
+#        for formal in method.formals:
+#            print formal.formal_name
+#    for method in cls.methods:
+#        if method not in overriden_method_list:
+#            print method_name
+#            print str(len(method.formals))
+#            for formal in method.formals:
+#                print formal.formal_name
+      
+#overriden_methods = (method_name, method object, Class object)
+
+def print_internal_method():
+    ret = "abort\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "internal\n"
+    ret += "Object.abort\n"
+    ret += "copy\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "SELF_TYPE\n"
+    ret += "internal\n"
+    ret += "Object.copy\n"
+    ret += "type_name\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "String\n"
+    ret += "internal\n"
+    ret += "Object.type_name\n"
+    print str.strip(ret)
+    return ret
+
+def print_internal_IO_method():
+    ret = "in_int\n"
+    ret += "0\n"
+    ret += "IO\n"
+    ret += "0\n"
+    ret += "Int\n"
+    ret += "internal\n"
+    ret += "IO.in_int\n"
+    ret += "in_string\n"
+    ret += "0\n"
+    ret += "IO\n"
+    ret += "0\n"
+    ret += "String\n"
+    ret += "internal\n"
+    ret += "IO.in_string\n"
+    ret += "out_int\n"
+    ret += "1\n"
+    ret += "x\n"
+    ret += "IO\n"
+    ret += "0\n"
+    ret += "SELF_TYPE\n"
+    ret += "internal\n"
+    ret += "IO.out_int\n"
+    ret += "out_string\n"
+    ret += "1\n"
+    ret += "x\n"
+    ret += "IO\n"
+    ret += "0\n"
+    ret += "SELF_TYPE\n"
+    ret += "internal\n"
+    ret += "IO.out_string\n"
+    print str.strip(ret)
+    return ret
+
+def print_Object_method():
+    ret = "Object\n"
+    ret += "3\n"
+    ret += "abort\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "internal\n"
+    ret += "Object.abort\n"
+    ret += "copy\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "SELF_TYPE\n"
+    ret += "internal\n"
+    ret += "Object.copy\n"
+    ret += "type_name\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "String\n"
+    ret += "internal\n"
+    ret += "Object.type_name\n"
+    print str.strip(ret)
+    return ret
+
+def print_String_method():
+    ret = "String\n"
+    ret += "6\n"
+    ret += "abort\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "internal\n"
+    ret += "Object.abort\n"
+    ret += "copy\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "SELF_TYPE\n"
+    ret += "internal\n"
+    ret += "Object.copy\n"
+    ret += "type_name\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "String\n"
+    ret += "internal\n"
+    ret += "Object.type_name\n"
+    ret += "concat\n"
+    ret += "1\n"
+    ret += "s\n"
+    ret += "String\n"
+    ret += "0\n"
+    ret += "String\n"
+    ret += "internal\n"
+    ret += "String.concat\n"
+    ret += "length\n"
+    ret += "0\n"
+    ret += "String\n"
+    ret += "0\n"
+    ret += "Int\n"
+    ret += "internal\n"
+    ret += "String.length\n"
+    ret += "substr\n"
+    ret += "2\n"
+    ret += "i\n"
+    ret += "l\n"
+    ret += "String\n"
+    ret += "0\n"
+    ret += "String\n"
+    ret += "internal\n"
+    ret += "String.substr\n"
+    print str.strip(ret)
+    return ret
+
+def print_Bool_method():
+    ret = "Bool\n"
+    ret += "3\n"
+    ret += "abort\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "internal\n"
+    ret += "Object.abort\n"
+    ret += "copy\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "SELF_TYPE\n"
+    ret += "internal\n"
+    ret += "Object.copy\n"
+    ret += "type_name\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "String\n"
+    ret += "internal\n"
+    ret += "Object.type_name\n"
+    print str.strip(ret)
+    return ret
+
+def print_IO_method():
+    ret = "IO\n"
+    ret += "7\n"
+    ret += "abort\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "internal\n"
+    ret += "Object.abort\n"
+    ret += "copy\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "SELF_TYPE\n"
+    ret += "internal\n"
+    ret += "Object.copy\n"
+    ret += "type_name\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "String\n"
+    ret += "internal\n"
+    ret += "Object.type_name\n"
+    ret += "in_int\n"
+    ret += "0\n"
+    ret += "IO\n"
+    ret += "0\n"
+    ret += "Int\n"
+    ret += "internal\n"
+    ret += "IO.in_int\n"
+    ret += "in_string\n"
+    ret += "0\n"
+    ret += "IO\n"
+    ret += "0\n"
+    ret += "String\n"
+    ret += "internal\n"
+    ret += "IO.in_string\n"
+    ret += "out_int\n"
+    ret += "1\n"
+    ret += "x\n"
+    ret += "IO\n"
+    ret += "0\n"
+    ret += "SELF_TYPE\n"
+    ret += "internal\n"
+    ret += "IO.out_int\n"
+    ret += "out_string\n"
+    ret += "1\n"
+    ret += "x\n"
+    ret += "IO\n"
+    ret += "0\n"
+    ret += "SELF_TYPE\n"
+    ret += "internal\n"
+    ret += "IO.out_string\n"
+    print str.strip(ret)
+    return ret
+
+def print_Int_method():
+    ret = "Int\n"
+    ret += "3\n"
+    ret += "abort\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "internal\n"
+    ret += "Object.abort\n"
+    ret += "copy\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "SELF_TYPE\n"
+    ret += "internal\n"
+    ret += "Object.copy\n"
+    ret += "type_name\n"
+    ret += "0\n"
+    ret += "Object\n"
+    ret += "0\n"
+    ret += "String\n"
+    ret += "internal\n"
+    ret += "Object.type_name\n"
+    print str.strip(ret)
+    return ret
+ 
+def check_overriden(method, cls, class_list):
+    method_name_list = [x.method_name.ident for x in cls.methods]
+    if (method.method_name.ident in method_name_list):
+        return True
+    if (cls.inherits_iden == None):
+        return False
+    if (cls.inherits_iden != None) :
+        return check_overriden(method,filter(lambda x :
+            x.name_iden.ident==cls.inherits_iden.ident,
+            class_list)[0],class_list)
+
+def print_methods(overriden_methods, cls, class_list, num_method) :
+   
+    if cls.inherits_iden == None or cls.inherits_iden.ident in ["IO","String","Int","Object","Bool"]:
+        if cls.inherits_iden != None :
+            print str(num_method + len(cls.methods)+4)
+            fout.write(str(num_method + len(cls.methods)+4) + "\n")
+            fout.write(print_internal_method())
+            fout.write(print_internal_IO_method())
+        else:
+            print str(num_method + len(cls.methods))
+            fout.write(str(num_method + len(cls.methods)) + "\n")
+            fout.write(print_internal_method())
+
+        for method in cls.methods:
+            print str(method.method_name.ident)
+            fout.write(str(method.method_name.ident)+"\n")
+            filtered_method = filter(lambda x : x[0] ==
+                    method.method_name.ident, overriden_methods)
+            if filtered_method != []:
+                print str(len(filtered_method[0][1].formals))
+                fout.write(str(len(filtered_method[0][1].formals))+ "\n")
+                for formal in filtered_method[0][1].formals:
+                    print str(formal.formal_name.ident)
+                    fout.write(str(formal.formal_name.ident)+"\n")
+                print str(filtered_method[0][2].name_iden.ident)
+                fout.write(str(filtered_method[0][2].name_iden.ident) + "\n")
+                print str(filtered_method[0][1].body_exp).rstrip()
+                fout.write(str(filtered_method[0][1].body_exp))
+            else:
+                print str(len(method.formals))
+                fout.write(str(len(method.formals))+"\n")
+                for formal in method.formals:
+                    print str(formal.formal_name.ident)
+                    fout.write(str(formal.formal_name.ident)+"\n")
+                print str(cls.name_iden.ident)
+                fout.write(str(cls.name_iden.ident)+"\n")
+                print str(method.body_exp).rstrip()
+                fout.write(str(method.body_exp))
+    else:
+        printed_method_count = 0
+        printed_method_list = []
+        multi_overriden_methods = []
+        parent_cls = filter(lambda x : x.name_iden.ident == cls.inherits_iden.ident,
+                        class_list)
+        for method in cls.methods:
+            if not check_overriden(method, parent_cls[0], class_list):
+                printed_method_count += 1
+                printed_method_list.append(method)
+            else:
+                multi_overriden_methods.append(method)
+        old_overriden_methods = overriden_methods
+        for method in multi_overriden_methods:
+            filtered_method = filter(lambda x : x[0] == \
+                    method.method_name.ident, overriden_methods)
+            if filtered_method == []:
+                temp = (method.method_name.ident, method, cls)
+                overriden_methods.append(temp)
+        
+        print_methods(overriden_methods, parent_cls[0], class_list, printed_method_count+num_method)
+
+        for method in printed_method_list:
+            print str(method.method_name.ident)
+            fout.write(str(method.method_name.ident)+"\n")
+            filtered_method = filter(lambda x : x[0] ==
+                    method.method_name.ident, old_overriden_methods)
+            if filtered_method != []:
+                print str(len(filtered_method[0][1].formals))
+                fout.write(str(len(filtered_method[0][1].formals))+"\n")
+                for formal in filtered_method[0][1].formals:
+                    print str(formal.formal_name.ident)
+                    fout.write(str(formal.formal_name.ident)+"\n")
+                print str(filtered_method[0][2].name_iden.ident)
+                fout.write(str(filtered_method[0][2].name_iden.ident)+"\n")
+                print str(filtered_method[0][1].body_exp).rstrip()
+                fout.write(str(filtered_method[0][1].body_exp))
+            else:
+                print str(len(method.formals))
+                fout.write(str(len(method.formals))+"\n")
+                for formal in method.formals:
+                    print str(formal.formal_name.ident)
+                    fout.write(str(formal.formal_name.ident)+"\n")
+                print str(cls.name_iden.ident)
+                fout.write(str(cls.name_iden.ident)+"\n")
+                print str(method.body_exp).rstrip()
+                fout.write(str(method.body_exp))
+        
+def print_imp_map(ast):
+    print "implementation_map"
+    fout.write("implementation_map\n")
+    class_list = [c for c in ast]
+    class_tuple_list = [(c.name_iden.ident, c) for c in ast]
+    class_tuple_list += [("IO",None), ("Object",None), ("Int", None), ("String",
+        None), ("Bool",None)]
+    class_tuple_list = set(class_tuple_list)
+    class_tuple_list = sorted(class_tuple_list, key = lambda x : x[0]) 
+    print str(len(class_tuple_list))
+    fout.write(str(len(class_tuple_list))+"\n")
+    for class_tuple in class_tuple_list :
+        if class_tuple[1] != None :
+            print str(class_tuple[0])
+            fout.write(str(class_tuple[0])+"\n")
+            print_methods([], class_tuple[1], class_list,3)
+        else:
+            if class_tuple[0]=="IO":
+                fout.write(print_IO_method())
+            elif class_tuple[0]=="Int":
+                fout.write(print_Int_method())
+            elif class_tuple[0]=="Bool":
+                fout.write(print_Bool_method())
+            elif class_tuple[0]=="String":
+                fout.write(print_String_method())
+            elif class_tuple[0]=="Object":
+                fout.write(print_Object_method())
+
+def print_parent_map(ast):
+    print "parent_map"
+    fout.write("parent_map\n")
+    class_list = [c for c in ast]
+    class_tuple_list = [(c.name_iden.ident, c) for c in ast]
+    class_tuple_list += [("IO",None), ("Int", None), ("String",
+        None), ("Bool",None)]
+    class_tuple_list = set(class_tuple_list)
+    class_tuple_list = sorted(class_tuple_list, key = lambda x : x[0])
+    print len(class_tuple_list)
+    fout.write(str(len(class_tuple_list))+"\n")
+    for class_tuple in class_tuple_list :
+        if class_tuple[1] == None :
+            print class_tuple[0] + "\n" + "Object"
+            fout.write(class_tuple[0] + "\n" + "Object\n")
+        else :
+            if class_tuple[1].inherits_iden == None:
+                print class_tuple[0] + "\n" + "Object"
+                fout.write(class_tuple[0] + "\n" + "Object\n")
+            else:
+                print class_tuple[0] + "\n" + class_tuple[1].inherits_iden.ident
+                fout.write(class_tuple[0] + "\n" +\
+                        class_tuple[1].inherits_iden.ident + "\n")
+
+def print_class_attribute(cls, class_list,num_attr):
+    if (cls.inherits_iden != None and cls.inherits_iden.ident not in
+    ["IO","Object", "Int", "String", "Bool"]) :
+        print_class_attribute(filter(lambda x :
+            x.name_iden.ident==cls.inherits_iden.ident, class_list)[0], class_list,
+            num_attr + len(cls.attributes))
+    else :
+        print num_attr
+        fout.write(str(num_attr)+"\n")
+    for attribute in cls.attributes :
+                if attribute.initialization :
+                    print "initializer\n" + attribute.attr_name.ident + "\n"\
+                            + attribute.attr_type.ident
+                    fout.write("initializer\n" + attribute.attr_name.ident + "\n"\
+                            + attribute.attr_type.ident+"\n")
+                else:
+                    print "no_initializer\n" + attribute.attr_name.ident + "\n"\
+                            + attribute.attr_type.ident
+                    fout.write("no_initializer\n" + attribute.attr_name.ident + "\n"\
+                            + attribute.attr_type.ident+"\n")
+
+def print_class_map(ast):
+    print "class_map"
+    fout.write("class_map\n")
+    class_list = [c for c in ast]
+    class_tuple_list = [(c.name_iden.ident, c) for c in ast]
+    class_tuple_list += [("IO",None), ("Object",None), ("Int", None), ("String",
+        None), ("Bool",None)]
+    class_tuple_list = set(class_tuple_list)
+    class_tuple_list = sorted(class_tuple_list, key = lambda x : x[0]) 
+    print str(len(class_tuple_list))
+    fout.write(str(len(class_tuple_list))+"\n")
+    for class_tuple in class_tuple_list :
+        print str(class_tuple[0])
+        fout.write(str(class_tuple[0])+"\n")
+        if class_tuple[1] == None :
+            print "0"
+            fout.write("0\n")
+        else :
+           print_class_attribute(class_tuple[1], class_list, len(class_tuple[1].attributes))
+
 
 def main():
     global ast_lines
@@ -804,6 +1340,7 @@ def main():
         ast_lines = [l.rstrip() for l in f.readlines()]
 
     ast = read_ast()
+
 
     ### check if class is defined more than once
     for i, cls in enumerate(ast):
@@ -830,9 +1367,18 @@ def main():
 
 
     ### successful type checking, print AAST
+    
+    
+    print_class_map(ast)
+    print_imp_map(ast)
+    print_parent_map(ast)
     print str(len(ast))
+    fout.write(str(len(ast))+"\n")
     for cls in ast:
         print cls
+        fout.write(str(cls))
+    
+                
 
 if __name__ == '__main__':
     main()
