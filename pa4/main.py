@@ -1303,6 +1303,7 @@ def print_class_attribute(cls, class_list,num_attr):
                             + attribute.attr_type.ident
                     fout.write("initializer\n" + attribute.attr_name.ident + "\n"\
                             + attribute.attr_type.ident+"\n")
+                    fout.write(str(attribute.exp))
                 else:
                     print "no_initializer\n" + attribute.attr_name.ident + "\n"\
                             + attribute.attr_type.ident
@@ -1327,7 +1328,7 @@ def print_class_map(ast):
             print "0"
             fout.write("0\n")
         else :
-           print_class_attribute(class_tuple[1], class_list, len(class_tuple[1].attributes))
+            print_class_attribute(class_tuple[1], class_list, len(class_tuple[1].attributes))
 
 
 def main():
