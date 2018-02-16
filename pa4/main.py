@@ -515,7 +515,7 @@ class Attribute(object):
 
         return ret
 
-class identifier(object):
+class Identifier(object):
     line_num = None
     ident = None
     def __init__(self, _line_num, _ident):
@@ -593,7 +593,7 @@ def read_identifier():
     line_no = get_line()
     ident_name = get_line()
 
-    return identifier(line_no, ident_name)
+    return Identifier(line_no, ident_name)
 
 def read_formal():
     formal_name = read_identifier()
