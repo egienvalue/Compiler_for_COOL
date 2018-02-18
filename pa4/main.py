@@ -5,17 +5,17 @@ import pprint
 
 ast_lines = []
 class_list = []
-type_filename =  "my_" + (sys.argv[1])[:-4] + "-type"
+type_filename = "my_" + (sys.argv[1])[:-4] + "-type"
 fout = open(type_filename, 'w')
 class_map = {"Object":[], "Int":[], "String":[], "Bool":[], "IO":[]}
 imp_map = \
-{"Object":[("Object","abort"),("Object","type_name"),("Object","copy")],\
-   "Int" :[("Object","abort"),("Object","type_name"),("Object","copy")],\
-"String" :[("Object","abort"),("Object","type_name"),("Object","copy"), \
-           ("String","length"),("String","concat"),("String", "substr")],\
-   "Bool":[("Object","abort"),("Object","type_name"),("Object","copy")],\
-     "IO":[("Object","abort"),("Object","type_name"),("Object","copy"),\
-           ("IO","out_string"),("IO","out_int"),("IO","in_string"),("IO","in_int")]
+{"Object":[("Object","abort"),("Object","copy"),("Object","type_name")],\
+   "Int" :[("Object","abort"),("Object","copy"),("Object","type_name")],\
+"String" :[("Object","abort"),("Object","copy"),("Object","type_name"), \
+           ("String","concat"),("String","length"),("String", "substr")],\
+   "Bool":[("Object","abort"),("Object","copy"),("Object","type_name")],\
+     "IO":[("Object","abort"),("Object","copy"),("Object","type_name"),\
+           ("IO","in_int"),("IO","in_string"),("IO","out_int"),("IO","out_string")]
 }
 parent_map = {"Int":"Object", "String":"Object", "Bool":"Object"}
 # define multiple classes
@@ -47,6 +47,11 @@ class Integer(Expression):
         ret += "integer\n" 
         ret += str(self.int_val)+ "\n"
         return ret
+    def __repr__(self):
+        ret = self.line_num + "\n"
+        ret += "integer\n" 
+        ret += str(self.int_val)+ "\n"
+        return ret
 
 class String(Expression):
     str_val = None
@@ -61,6 +66,12 @@ class String(Expression):
         ret += "string\n" 
         ret += str(self.str_val) + "\n"
         return ret
+    def __repr__(self):
+        ret = self.line_num + "\n"
+        ret += "string\n" 
+        ret += str(self.str_val) + "\n"
+        return ret
+
 
 class TrueExp(Expression):
     def __init__(self, _line_num):
@@ -672,6 +683,8 @@ def read_exp():
     elif exp_name == 'static dispatch':
         obj_name = read_exp()
         type_name = read_identifier()
+        method_name = read_identifier()
+        num_args = int(get_line())
         args = []
         for i in range(num_args):
             args.append(read_exp())
@@ -1247,7 +1260,7 @@ def print_methods(overriden_methods, cls, class_list, num_method) :
                 print str(method.body_exp).rstrip()
                 fout.write(str(method.body_exp))
         
-def print_imp_map(ast):
+def print_imp_map1(ast):
     print "implementation_map"
     fout.write("implementation_map\n")
     class_list = [c for c in ast]
@@ -1321,7 +1334,7 @@ def print_class_attribute(cls, class_list,num_attr):
                     fout.write("no_initializer\n" + attribute.attr_name.ident + "\n"\
                             + attribute.attr_type.ident+"\n")
 
-def print_class_map(ast):
+def print_class_map1(ast):
     print "class_map"
     fout.write("class_map\n")
     class_list = [c for c in ast]
@@ -1530,11 +1543,141 @@ def produce_parent_map(ast):
             if cls.inherits_iden.ident == "IO":
                 parent_map["IO"] = "Object"
 
-#def produce_internal_ast():
-#    name_iden = Identifier(0, "IO")
-#    inherits_iden = Identifier(0, "Object")
-#    methods = [Method()]
-#    IO_class = Class(Identifier(0, "IO"), Identifier(0, "Object"), Method())
+def produce_internal_ast():
+    name_iden = Identifier(0, "Object")
+    inherits_iden = None
+    method_names = {"abort":"Object","type_name":"String","copy":"SELF_TYPE"}
+    methods = [] 
+    method = Method(Identifier(0,"abort"), [],Identifier(0,"Object"),None)
+    method.body_exp = "0" +"\n" +\
+                          method.method_type.ident +\
+                          "\ninternal\n"+name_iden.ident+"." +\
+                          method.method_name.ident+"\n"
+    methods.append(method)
+    method = Method(Identifier(0,"type_name"), [],Identifier(0,"String"),None)
+    method.body_exp = "0" +"\n" +\
+                          method.method_type.ident +\
+                          "\ninternal\n"+name_iden.ident+"." +\
+                          method.method_name.ident+"\n"
+    methods.append(method)
+    method = Method(Identifier(0,"copy"), [],Identifier(0,"SELF_TYPE"),None)
+    method.body_exp = "0" +"\n" +\
+                          method.method_type.ident +\
+                          "\ninternal\n"+name_iden.ident+"." +\
+                          method.method_name.ident+"\n"
+    methods.append(method)
+    Object_class = Class(name_iden, inherits_iden, [],methods, methods+[])
+
+    name_iden = Identifier(0, "IO")
+    inherits_iden = Identifier(0,"Object") 
+    methods = []
+    method = Method(Identifier(0,"out_string"),
+            [Formal(Identifier(0,"x"),Identifier(0,"String"))],Identifier(0,"SELF_TYPE"),None)
+    method.body_exp = "0" +"\n" +\
+                          method.method_type.ident +\
+                          "\ninternal\n"+name_iden.ident+"." +\
+                          method.method_name.ident+"\n"
+    methods.append(method)
+    method = Method(Identifier(0,"out_int"),
+            [Formal(Identifier(0,"x"),Identifier(0,"Int"))],Identifier(0,"SELF_TYPE"),None)
+    method.body_exp = "0" +"\n" +\
+                          method.method_type.ident +\
+                          "\ninternal\n"+name_iden.ident+"." +\
+                          method.method_name.ident+"\n"
+    methods.append(method)
+    method = Method(Identifier(0,"in_string"),
+            [],Identifier(0,"String"),None)
+    method.body_exp = "0" +"\n" +\
+                          method.method_type.ident +\
+                          "\ninternal\n"+name_iden.ident+"." +\
+                          method.method_name.ident+"\n"
+    methods.append(method)
+    method = Method(Identifier(0,"in_int"),
+            [],Identifier(0,"Int"),None)
+    method.body_exp = "0" +"\n" +\
+                          method.method_type.ident +\
+                          "\ninternal\n"+name_iden.ident+"." +\
+                          method.method_name.ident+"\n"
+    methods.append(method)
+    IO_class = Class(name_iden, inherits_iden, [],methods, methods+[])
+    
+    name_iden = Identifier(0, "Int")
+    inherits_iden = Identifier(0,"Object")
+    methods = []
+    Int_class = Class(name_iden, inherits_iden, [],methods, methods+[])
+
+    name_iden = Identifier(0, "Bool")
+    inherits_iden = Identifier(0,"Object")
+    methods = []
+    Bool_class = Class(name_iden, inherits_iden, [],methods, methods+[])
+
+    name_iden = Identifier(0, "String")
+    inherits_iden = Identifier(0,"Object")
+    methods = []
+    method = Method(Identifier(0,"length"),
+            [],Identifier(0,"Int"),None)
+    method.body_exp = "0" +"\n" +\
+                          method.method_type.ident +\
+                          "\ninternal\n"+name_iden.ident+"." +\
+                          method.method_name.ident+"\n"
+    methods.append(method)
+    method = Method(Identifier(0,"concat"),
+            [Formal(Identifier(0,"s"),Identifier(0,"String"))],Identifier(0,"String"),None)
+    method.body_exp = "0" +"\n" +\
+                          method.method_type.ident +\
+                          "\ninternal\n"+name_iden.ident+"." +\
+                          method.method_name.ident+"\n"
+    methods.append(method)
+    method = Method(Identifier(0,"substr"),
+            [Formal(Identifier(0,"i"),Identifier(0,"Int")), 
+             Formal(Identifier(0,"l"),Identifier(0,"Int"))],Identifier(0,"String"),None)
+    method.body_exp = "0" +"\n" +\
+                          method.method_type.ident +\
+                          "\ninternal\n"+name_iden.ident+"." +\
+                          method.method_name.ident+"\n"
+    methods.append(method)
+    String_class = Class(name_iden, inherits_iden, [],methods, methods+[])
+
+    return [Object_class, Bool_class, IO_class, Int_class, String_class]
+
+
+def print_imp_map(imp_map, ast):
+    imp_map = sorted(imp_map.items())
+    ret = "implementation_map\n"
+    ret += str(len(imp_map)) + "\n"
+    for cls,method_list in imp_map: 
+        ret += cls + "\n"
+        ret += str(len(method_list)) + "\n"
+        for method_tuple in method_list :
+            ret += method_tuple[1] + "\n"
+            cls_instance = [_cls for _cls in ast if _cls.name_iden.ident == \
+                    method_tuple[0]][0]
+            method_instance = [_method for _method in cls_instance.methods if \
+                                _method.method_name.ident == method_tuple[1]][0]
+            ret += str(len(method_instance.formals)) + "\n"
+            for formal in method_instance.formals :
+                ret += formal.formal_name.ident + "\n"
+            ret += method_tuple[0] + "\n"
+            ret += str(method_instance.body_exp)
+    fout.write(ret)
+    return ret
+
+def print_class_map(class_map, ast):
+    class_map = sorted(class_map.items())
+    ret = "class_map\n"
+    ret += str(len(class_map)) + "\n"
+    for cls, attribute_list in class_map:
+        ret += cls + "\n"
+        ret += str(len(attribute_list)) + "\n"
+        for attribute in attribute_list :
+            if attribute.initialization :
+                    ret += "initializer\n" + attribute.attr_name.ident + "\n"+\
+                            attribute.attr_type.ident + "\n"
+                    ret += str(attribute.exp) 
+            else:
+                    ret += "no_initializer\n" + attribute.attr_name.ident + "\n"\
+                            + attribute.attr_type.ident + "\n"
+    fout.write(ret)
 
 def main():
     global ast_lines
@@ -1548,7 +1691,7 @@ def main():
     with open(sys.argv[1]) as f:
         ast_lines = [l.rstrip() for l in f.readlines()]
 
-    internal_ast = [] 
+    internal_ast = produce_internal_ast()
     ast = read_ast()
     produce_parent_map(ast) 
 
@@ -1624,14 +1767,14 @@ def main():
     ### successful type checking, print AAST
     
     
-    #print_class_map(ast)
-    #print_imp_map(ast)
+    print_class_map(class_map, ast+internal_ast)
+    #print_imp_map(imp_map,ast+internal_ast)
     #print_parent_map(ast)
     #print str(len(ast))
-    fout.write(str(len(ast))+"\n")
-    for cls in ast:
+    #fout.write(str(len(ast))+"\n")
+    #for cls in ast:
         #print cls
-        fout.write(str(cls))
+        #fout.write(str(cls))
     
                 
 
