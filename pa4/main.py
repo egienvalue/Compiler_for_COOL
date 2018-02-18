@@ -5,7 +5,8 @@ import pprint
 
 ast_lines = []
 class_list = []
-type_filename = "my_" + (sys.argv[1])[:-4] + "-type"
+ast = []
+type_filename =  (sys.argv[1])[:-4] + "-type"
 fout = open(type_filename, 'w')
 class_map = {"Object":[], "Int":[], "String":[], "Bool":[], "IO":[]}
 imp_map = \
@@ -43,7 +44,7 @@ class Integer(Expression):
         self.exp_type = "Int"
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "integer\n" 
         ret += str(self.int_val)+ "\n"
         return ret
@@ -62,7 +63,7 @@ class String(Expression):
         self.exp_type = "String"
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "string\n" 
         ret += str(self.str_val) + "\n"
         return ret
@@ -79,7 +80,7 @@ class TrueExp(Expression):
         self.exp_type = "Bool"
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "true\n"
         return ret
 
@@ -89,7 +90,7 @@ class FalseExp(Expression):
         self.exp_type = "Bool"
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "false\n"
         return ret
 
@@ -100,7 +101,7 @@ class IdentifierExp(Expression):
         self.ident = _ident
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "identifier\n" 
         ret += str(self.ident)
         return ret
@@ -114,7 +115,7 @@ class New(Expression):
         self.exp_type = _ident.ident
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "new\n"
         ret += str(self.ident)
         return ret
@@ -129,7 +130,7 @@ class Assign(Expression):
         self.exp = _exp
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "assign\n"
         ret += str(self.ident)
         ret += str(self.exp)
@@ -147,7 +148,7 @@ class Let(Expression):
         self.exp = _exp
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "let\n"
         ret += str(len(self.binding_list)) + "\n"
         for binding in self.binding_list :
@@ -190,11 +191,11 @@ class Case(Expression):
         self.element_list = _element_list
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "case\n"
         ret += str(self.exp)
         ret += str(len(self.element_list)) + "\n"
-        for element in element_list:
+        for element in self.element_list:
             ret += str(element)
         return ret
 
@@ -228,7 +229,7 @@ class Dynamic_Dispatch(Expression):
         self.args = _args
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "dynamic_dispatch\n"
         ret += str(self.exp)
         ret += str(self.method_ident)
@@ -251,7 +252,7 @@ class Static_Dispatch(Expression):
         self.args = _args
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "static_dispatch\n"
         ret += str(self.exp)
         ret += str(self.type_ident)
@@ -272,7 +273,7 @@ class Self_Dispatch(Expression):
         self.args = _args
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "self_dispatch\n"
         ret += str(self.method_ident)
         ret += str(len(self.args)) + "\n"
@@ -292,7 +293,7 @@ class If(Expression):
         self.else_body = _else_body
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "if\n"
         ret += str(self.predicate)
         ret += str(self.then_body)
@@ -310,7 +311,7 @@ class While(Expression):
         self.body = _body
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "while\n"
         ret += str(self.predicate)
         ret += str(self.body)
@@ -324,7 +325,7 @@ class Block(Expression):
         self.exp_list = _exp_list
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "block\n"
         ret += str(len(self.exp_list)) + "\n"
         for exp in self.exp_list:
@@ -339,7 +340,7 @@ class Isvoid(Expression):
         self.exp = _exp
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "isvoid\n"
         ret += str(self.exp)
 
@@ -355,7 +356,7 @@ class Plus(Expression):
         self.rhs = _rhs
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "plus\n"
         ret += str(self.lhs)
         ret += str(self.rhs)
@@ -372,7 +373,7 @@ class Minus(Expression):
         self.rhs = _rhs
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "minus\n"
         ret += str(self.lhs)
         ret += str(self.rhs)
@@ -389,7 +390,7 @@ class Times(Expression):
         self.rhs = _rhs
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "times\n"
         ret += str(self.lhs)
         ret += str(self.rhs)
@@ -406,7 +407,7 @@ class Divide(Expression):
         self.rhs = _rhs
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "divide\n"
         ret += str(self.lhs)
         ret += str(self.rhs)
@@ -423,7 +424,7 @@ class Lt(Expression):
         self.rhs = _rhs
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "lt\n"
         ret += str(self.lhs)
         ret += str(self.rhs)
@@ -440,7 +441,7 @@ class Le(Expression):
         self.rhs = _rhs
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "le\n"
         ret += str(self.lhs)
         ret += str(self.rhs)
@@ -457,7 +458,7 @@ class Eq(Expression):
         self.rhs = _rhs
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "eq\n"
         ret += str(self.lhs)
         ret += str(self.rhs)
@@ -472,7 +473,7 @@ class Not(Expression):
         self.exp = _exp
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "not\n"
         ret += str(self.exp)
 
@@ -486,7 +487,7 @@ class Negate(Expression):
         self.exp = _exp
 
     def __str__(self):
-        ret = self.s()
+        ret = self.line_num + "\n"
         ret += "negate\n"
         ret += str(self.exp)
 
@@ -609,6 +610,8 @@ class Class(object):
 # print section
 def get_line():
     global ast_lines
+    if ast_lines == []:
+        return
     return ast_lines.pop(0)
 
 def read_identifier():
@@ -680,7 +683,7 @@ def read_exp():
 
         return Dynamic_Dispatch(line_number, obj_name, method_name, args)
 
-    elif exp_name == 'static dispatch':
+    elif exp_name == 'static_dispatch':
         obj_name = read_exp()
         type_name = read_identifier()
         method_name = read_identifier()
@@ -1357,7 +1360,7 @@ def print_class_map1(ast):
          
 
 def tc( astnode, symbol_table = {}):
-
+    global ast
     if isinstance(astnode, Class):
 
         # check redefined Object
@@ -1366,12 +1369,15 @@ def tc( astnode, symbol_table = {}):
 
         # check main method exist
         if astnode.name_iden.ident == "Main":
-            if "main" not in [x.method_name.ident for x in astnode.methods] :
+            if "main" not in [x[1] for x in imp_map["Main"]] :
                 raise Exception("ERROR: 0: Type-Check: Class Main " + \
                                 "method main not found")
-            main_method = [method for method in astnode.methods if \
-                    method.method_name.ident == "main"][0]
-            if main_method.formals != []:
+            cls_name = [x[0] for x in imp_map["Main"] if x[1] == "main"][0]
+            cls_instance = [_cls for _cls in ast if _cls.name_iden.ident == \
+                    cls_name][0]
+            method_instance = [_method for _method in cls_instance.methods if \
+                                _method.method_name.ident == "main"][0]
+            if method_instance.formals != []:
                 raise Exception("ERROR: 0: Type-Check: class Main method main with 0 parameters not found")
                 
 
@@ -1467,8 +1473,6 @@ def tc( astnode, symbol_table = {}):
     elif isinstance(astnode, Plus):
 	t1 = tc(astnode.e1, symbol_table)
 	t2 = tc(astnode.e2. symbol_talbe)
-        print "hhhhhhhh"
-        exit()
 	if (t1 == "Integer" and t2 == "Integer"):
 	    astnode.exp_type = "Integer"
 	    return "Integer"
@@ -1481,7 +1485,7 @@ def tc( astnode, symbol_table = {}):
 def produce_class_map(cls,ast):
     global class_map
     class_list = [c for c in ast]
-    if cls.inherits_iden == None or cls.inherits_iden.ident == "IO":
+    if cls.inherits_iden == None or cls.inherits_iden.ident in ["IO", "Object"]:
         class_map[cls.name_iden.ident]=cls.attributes
         return list(class_map[cls.name_iden.ident])
     elif cls.inherits_iden != None:
@@ -1684,13 +1688,13 @@ def main():
     global class_map
     global imp_map
     global parent_map
+    global ast
     if len(sys.argv) < 2:
         print("Specify .cl-ast input file.")
         exit()
 
     with open(sys.argv[1]) as f:
         ast_lines = [l.rstrip() for l in f.readlines()]
-
     internal_ast = produce_internal_ast()
     ast = read_ast()
     produce_parent_map(ast) 
@@ -1744,7 +1748,7 @@ def main():
             exit(0)
         t_marked.append(current_cls.name_iden.ident)
         parent_cls = filter(lambda x : x.name_iden.ident == current_cls.inherits_iden.ident,
-                        ast)[0]
+                        internal_ast+ast)[0]
         visit(parent_cls)
 
     t_marked = []
@@ -1755,8 +1759,8 @@ def main():
     ### 
     produce_parent_map(ast)
     for cls in ast:
-        produce_class_map(cls, ast)
-        produce_imp_map(cls, ast)
+        produce_class_map(cls, internal_ast + ast)
+        produce_imp_map(cls, internal_ast + ast)
 
     try:
         for cls in ast:
