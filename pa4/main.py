@@ -6,6 +6,7 @@ import pprint
 ast_lines = []
 class_list = []
 ast = []
+class_map_print_flag = 0
 type_filename =  (sys.argv[1])[:-4] + "-type"
 fout = open(type_filename, 'w')
 class_map = {"Object":[], "Int":[], "String":[], "Bool":[], "IO":[]}
@@ -21,12 +22,14 @@ imp_map = \
 parent_map = {"Int":"Object", "String":"Object", "Bool":"Object"}
 # define multiple classes
 class Expression(object):
+    global class_map_print_flag
     line_num = None
     exp_type = "No_TYPE"
 
     def s(self):
         ret = str(self.line_num) + "\n"
-        ret += str(self.exp_type) + "\n"
+        if (class_map_print_flag == 1):
+            ret += str(self.exp_type) + "\n"
         return ret
 
     def __init__(self, _line_num):
@@ -44,12 +47,12 @@ class Integer(Expression):
         self.exp_type = "Int"
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "integer\n" 
         ret += str(self.int_val)+ "\n"
         return ret
     def __repr__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "integer\n" 
         ret += str(self.int_val)+ "\n"
         return ret
@@ -63,12 +66,12 @@ class String(Expression):
         self.exp_type = "String"
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "string\n" 
         ret += str(self.str_val) + "\n"
         return ret
     def __repr__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "string\n" 
         ret += str(self.str_val) + "\n"
         return ret
@@ -80,7 +83,7 @@ class TrueExp(Expression):
         self.exp_type = "Bool"
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "true\n"
         return ret
 
@@ -90,7 +93,7 @@ class FalseExp(Expression):
         self.exp_type = "Bool"
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "false\n"
         return ret
 
@@ -101,7 +104,7 @@ class IdentifierExp(Expression):
         self.ident = _ident
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "identifier\n" 
         ret += str(self.ident)
         return ret
@@ -115,7 +118,7 @@ class New(Expression):
         self.exp_type = _ident.ident
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "new\n"
         ret += str(self.ident)
         return ret
@@ -130,7 +133,7 @@ class Assign(Expression):
         self.exp = _exp
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "assign\n"
         ret += str(self.ident)
         ret += str(self.exp)
@@ -148,7 +151,7 @@ class Let(Expression):
         self.exp = _exp
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "let\n"
         ret += str(len(self.binding_list)) + "\n"
         for binding in self.binding_list :
@@ -191,7 +194,7 @@ class Case(Expression):
         self.element_list = _element_list
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "case\n"
         ret += str(self.exp)
         ret += str(len(self.element_list)) + "\n"
@@ -229,7 +232,7 @@ class Dynamic_Dispatch(Expression):
         self.args = _args
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "dynamic_dispatch\n"
         ret += str(self.exp)
         ret += str(self.method_ident)
@@ -252,7 +255,7 @@ class Static_Dispatch(Expression):
         self.args = _args
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "static_dispatch\n"
         ret += str(self.exp)
         ret += str(self.type_ident)
@@ -273,7 +276,7 @@ class Self_Dispatch(Expression):
         self.args = _args
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "self_dispatch\n"
         ret += str(self.method_ident)
         ret += str(len(self.args)) + "\n"
@@ -293,7 +296,7 @@ class If(Expression):
         self.else_body = _else_body
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "if\n"
         ret += str(self.predicate)
         ret += str(self.then_body)
@@ -311,7 +314,7 @@ class While(Expression):
         self.body = _body
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "while\n"
         ret += str(self.predicate)
         ret += str(self.body)
@@ -325,7 +328,7 @@ class Block(Expression):
         self.exp_list = _exp_list
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "block\n"
         ret += str(len(self.exp_list)) + "\n"
         for exp in self.exp_list:
@@ -340,7 +343,7 @@ class Isvoid(Expression):
         self.exp = _exp
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "isvoid\n"
         ret += str(self.exp)
 
@@ -356,7 +359,7 @@ class Plus(Expression):
         self.rhs = _rhs
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "plus\n"
         ret += str(self.lhs)
         ret += str(self.rhs)
@@ -373,7 +376,7 @@ class Minus(Expression):
         self.rhs = _rhs
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "minus\n"
         ret += str(self.lhs)
         ret += str(self.rhs)
@@ -390,7 +393,7 @@ class Times(Expression):
         self.rhs = _rhs
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "times\n"
         ret += str(self.lhs)
         ret += str(self.rhs)
@@ -407,7 +410,7 @@ class Divide(Expression):
         self.rhs = _rhs
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "divide\n"
         ret += str(self.lhs)
         ret += str(self.rhs)
@@ -424,7 +427,7 @@ class Lt(Expression):
         self.rhs = _rhs
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "lt\n"
         ret += str(self.lhs)
         ret += str(self.rhs)
@@ -441,7 +444,7 @@ class Le(Expression):
         self.rhs = _rhs
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "le\n"
         ret += str(self.lhs)
         ret += str(self.rhs)
@@ -458,7 +461,7 @@ class Eq(Expression):
         self.rhs = _rhs
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "eq\n"
         ret += str(self.lhs)
         ret += str(self.rhs)
@@ -473,7 +476,7 @@ class Not(Expression):
         self.exp = _exp
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "not\n"
         ret += str(self.exp)
 
@@ -487,7 +490,7 @@ class Negate(Expression):
         self.exp = _exp
 
     def __str__(self):
-        ret = self.line_num + "\n"
+        ret = self.s()
         ret += "negate\n"
         ret += str(self.exp)
 
@@ -1292,7 +1295,7 @@ def print_imp_map1(ast):
                 fout.write(print_Object_method())
 
 def print_parent_map(ast):
-    print "parent_map"
+    #print "parent_map"
     fout.write("parent_map\n")
     class_list = [c for c in ast]
     class_tuple_list = [(c.name_iden.ident, c) for c in ast]
@@ -1300,18 +1303,18 @@ def print_parent_map(ast):
         None), ("Bool",None)]
     class_tuple_list = set(class_tuple_list)
     class_tuple_list = sorted(class_tuple_list, key = lambda x : x[0])
-    print len(class_tuple_list)
+    #print len(class_tuple_list)
     fout.write(str(len(class_tuple_list))+"\n")
     for class_tuple in class_tuple_list :
         if class_tuple[1] == None :
-            print class_tuple[0] + "\n" + "Object"
+            #print class_tuple[0] + "\n" + "Object"
             fout.write(class_tuple[0] + "\n" + "Object\n")
         else :
             if class_tuple[1].inherits_iden == None:
-                print class_tuple[0] + "\n" + "Object"
+                #print class_tuple[0] + "\n" + "Object"
                 fout.write(class_tuple[0] + "\n" + "Object\n")
             else:
-                print class_tuple[0] + "\n" + class_tuple[1].inherits_iden.ident
+                #print class_tuple[0] + "\n" + class_tuple[1].inherits_iden.ident
                 fout.write(class_tuple[0] + "\n" +\
                         class_tuple[1].inherits_iden.ident + "\n")
 
@@ -1684,6 +1687,7 @@ def print_class_map(class_map, ast):
     fout.write(ret)
 
 def main():
+    global class_map_print_flag
     global ast_lines
     global class_map
     global imp_map
@@ -1770,15 +1774,15 @@ def main():
         exit()
     ### successful type checking, print AAST
     
-    
     print_class_map(class_map, ast+internal_ast)
-    #print_imp_map(imp_map,ast+internal_ast)
-    #print_parent_map(ast)
+    class_map_print_flag = 1
+    print_imp_map(imp_map,ast+internal_ast)
+    print_parent_map(ast)
     #print str(len(ast))
-    #fout.write(str(len(ast))+"\n")
-    #for cls in ast:
+    fout.write(str(len(ast))+"\n")
+    for cls in ast:
         #print cls
-        #fout.write(str(cls))
+        fout.write(str(cls))
     
                 
 
