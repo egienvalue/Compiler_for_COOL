@@ -7,7 +7,7 @@ ast_lines = []
 class_list = []
 type_filename =  "my_" + (sys.argv[1])[:-4] + "-type"
 fout = open(type_filename, 'w')
-class_map = {}
+class_map = {"Object":[], "Int":[], "String":[], "Bool":[], "IO":[]}
 imp_map = \
 {"Object":[("Object","abort"),("Object","type_name"),("Object","copy")],\
    "Int" :[("Object","abort"),("Object","type_name"),("Object","copy")],\
@@ -1347,12 +1347,20 @@ def tc( astnode, symbol_table = {}):
 
     if isinstance(astnode, Class):
 
+        # check redefined Object
+        if astnode.name_iden.ident in ["Object","Int","String","Bool","SELF_TYPE", "IO"]:
+            raise Exception("ERROR: "+astnode.name_iden.line_num+": Type-Check: class "+astnode.name_iden.ident+" redefined")
 
         # check main method exist
         if astnode.name_iden.ident == "Main":
             if "main" not in [x.method_name.ident for x in astnode.methods] :
                 raise Exception("ERROR: 0: Type-Check: Class Main " + \
                                 "method main not found")
+            main_method = [method for method in astnode.methods if \
+                    method.method_name.ident == "main"][0]
+            if main_method.formals != []:
+                raise Exception("ERROR: 0: Type-Check: class Main method main with 0 parameters not found")
+                
 
         # check method redefined
         for i, method in enumerate(astnode.methods):
@@ -1364,25 +1372,59 @@ def tc( astnode, symbol_table = {}):
                             ":"+"Type-Check: Class "+ \
                             astnode.name_iden.ident + "redifines method")
         # check attribute redefined
-        for i, attribute in enumerate(astnode.attributes):
-            for j, target_attribute in enumerate(astnode.attributes):
-                if i!=j and attribute.attr_name.ident == \
-                            target_attribute.attr_name.ident:
-                    raise Exception("ERROR: " + \
-                            target_attribute.attr_name.ident + \
-                            ":"+"Type-Check: Class "+ \
-                            astnode.name_iden.ident + "redifines attribute")
+        check_list = []
+        for attribute in class_map[astnode.name_iden.ident]:
+            if attribute.attr_name.ident in check_list:
+                raise Exception("ERROR: "+attribute.attr_name.line_num+\
+                        ": Type-Check: class "+astnode.name_iden.ident+\
+                        " redefines attribute "+attribute.attr_name.ident)
+            else :
+                check_list.append(attribute.attr_name.ident)
+ 
+
+        # check every attibute
+        if astnode.attributes != [] :
+            for attribute in astnode.attributes:
+                tc(attribute)
         
-        # symbol table addition
-        
-     
+        if astnode.methods != [] :
+            for method in astnode.methods:
+                tc(method)
 
     elif isinstance(astnode, Method):
-        print "TODO"
+
+
+
+        if astnode.method_type.ident not in class_map.keys()+["SELF_TYPE"]:
+            raise Exception("ERROR: "+astnode.method_name.line_num+\
+                    ": Type-Check: class has method "+\
+                    astnode.method_name.ident + \
+                    " with unknown return type " + astnode.method_type.ident)
+        ## check duplicate formal
+        check_list = []
+        for formal in astnode.formals:
+            if formal.formal_type.ident not in class_map.keys():
+                raise Exception("ERROR: "+formal.formal_type.line_num+\
+                        ": Type-Check: class has method "+ \
+                        astnode.method_name.ident+ \
+                        " with formal parameter of unknown type "+ \
+                        formal.formal_type.ident)
+
+            if formal.formal_name.ident == "self":
+                raise Exception("ERROR: "+formal.formal_name.line_num+\
+                ": Type-Check: class has method "+astnode.method_name.ident+\
+                " with formal parameter named self")
+            if formal.formal_name.ident in check_list:
+                raise Exception("ERROR: "+ formal.formal_name.line_num+\
+                        ": Type-Check: class "+formal.formal_name.ident+\
+                        " duplicate formal "+formal.formal_name.ident)
+            else :
+                check_list.append(formal.formal_name.ident) 
+
     elif isinstance(astnode, Attribute):
-        print "TODO"
-    elif isinstance(astnode, Formal):
-        print "TODO"
+        if astnode.attr_name.ident == "self" :
+            raise Exception("ERROR: "+astnode.attr_name.line_num + \
+            ": Type-Check: class has an attribute named self")
     elif isinstance(astnode, Let):
 	if astnode.ident in symbol_table:
 	    symbol_tbale[astode.ident].push( (astnode.ident, astnode.type) )
@@ -1420,8 +1462,8 @@ def tc( astnode, symbol_table = {}):
 	else:
 	    raise Exception ("ERROR: Adding "+t1 + " to " + t2 + "\n")
     
-    else:
-	raise Exception ("ERROR: Unkown Expression type!")
+    #else:
+    #	raise Exception ("ERROR: Unkown Expression type!")
 
 def produce_class_map(cls,ast):
     global class_map
@@ -1487,14 +1529,18 @@ def produce_parent_map(ast):
             parent_map[cls.name_iden.ident] = cls.inherits_iden.ident
             if cls.inherits_iden.ident == "IO":
                 parent_map["IO"] = "Object"
-def produce_internal_ast():
-    name_iden = Identifier(0, "IO")
-    inherits_iden = Identifier(0, "Object")
-    methods = [Method()]
-    IO_class = Class(Identifier(0, "IO"), Identifier(0, "Object"), Method())
+
+#def produce_internal_ast():
+#    name_iden = Identifier(0, "IO")
+#    inherits_iden = Identifier(0, "Object")
+#    methods = [Method()]
+#    IO_class = Class(Identifier(0, "IO"), Identifier(0, "Object"), Method())
 
 def main():
     global ast_lines
+    global class_map
+    global imp_map
+    global parent_map
     if len(sys.argv) < 2:
         print("Specify .cl-ast input file.")
         exit()
@@ -1504,29 +1550,26 @@ def main():
 
     internal_ast = [] 
     ast = read_ast()
-    produce_parent_map(ast)
-    for cls in ast:
-        produce_class_map(cls, ast)
-        produce_imp_map(cls, ast)
-
-    print class_map
-    print imp_map
-    print parent_map
-    exit()
-    try:
-        for cls in ast:
-            tc(cls)
-    except Exception as e:
-	print e.message
+    produce_parent_map(ast) 
 
     ### check if class is defined more than once
     for i, cls in enumerate(ast):
         for j, target_cls in enumerate(ast):
             if i!=j and cls.name_iden.ident == target_cls.name_iden.ident:
-                print "ERROR: " + cls.name_iden.line_num + ":"\
+                print "ERROR: " + target_cls.name_iden.line_num + ":"\
                     "Type-Check: Class defined multiple times:"\
-                    + cls.name_iden.ident + "\n"
+                    + target_cls.name_iden.ident + "\n"
                 exit()
+
+    ## check class inherits from bool int string self_type
+    for cls in ast:
+        if cls.inherits_iden != None :
+            if cls.inherits_iden.ident in ["Int","Bool", "String", "SELF_TYPE"]:
+                    print "ERROR: "+ cls.inherits_iden.line_num + \
+                    ": Type-Check: class Main inherits from " + \
+                    cls.inherits_iden.ident
+                    exit()
+
 
     ### check if class inherits from nonexistent class
 
@@ -1541,19 +1584,54 @@ def main():
                     "Type-Check: Class inherits from non-existent class:"\
                     + cls.inherits_iden.ident + "\n"
                 exit()
+    
 
+    ### check the existance of Main class
+    if "Main" not in [cls.name_iden.ident for cls in ast]:
+        print "ERROR: 0: Type-Check: class Main not found"
+        exit()
+    
+    ### check inherits circle
+    def visit(current_cls):
+        if current_cls.inherits_iden == None or current_cls.inherits_iden.ident\
+                == "IO":
+            return 0
+        if current_cls.name_iden.ident in t_marked:
+            print "ERROR: 0: Type-Check: inheritance cycle"
+            exit(0)
+        t_marked.append(current_cls.name_iden.ident)
+        parent_cls = filter(lambda x : x.name_iden.ident == current_cls.inherits_iden.ident,
+                        ast)[0]
+        visit(parent_cls)
 
+    t_marked = []
+    for cls in ast:
+        t_marked=[]
+        visit(cls)
+
+    ### 
+    produce_parent_map(ast)
+    for cls in ast:
+        produce_class_map(cls, ast)
+        produce_imp_map(cls, ast)
+
+    try:
+        for cls in ast:
+            tc(cls)
+    except Exception as e:
+	print e.message
+        exit()
     ### successful type checking, print AAST
     
     
     #print_class_map(ast)
-    print_imp_map(ast)
+    #print_imp_map(ast)
     #print_parent_map(ast)
     #print str(len(ast))
-    #fout.write(str(len(ast))+"\n")
-    #for cls in ast:
+    fout.write(str(len(ast))+"\n")
+    for cls in ast:
         #print cls
-        #fout.write(str(cls))
+        fout.write(str(cls))
     
                 
 
