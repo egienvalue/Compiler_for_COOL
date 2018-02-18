@@ -2,12 +2,13 @@
 
 import sys
 import pprint
+import copy
 
 ast_lines = []
 class_list = []
 ast = []
 class_map_print_flag = 0
-type_filename =  (sys.argv[1])[:-4] + "-type"
+type_filename =  "my_" + (sys.argv[1])[:-4] + "-type"
 fout = open(type_filename, 'w')
 class_map = {"Object":[], "Int":[], "String":[], "Bool":[], "IO":[]}
 imp_map = \
@@ -1294,7 +1295,7 @@ def print_imp_map1(ast):
             elif class_tuple[0]=="Object":
                 fout.write(print_Object_method())
 
-def print_parent_map(ast):
+def print_parent_map1(ast):
     #print "parent_map"
     fout.write("parent_map\n")
     class_list = [c for c in ast]
@@ -1364,6 +1365,7 @@ def print_class_map1(ast):
 
 def tc( astnode, symbol_table = {}):
     global ast
+    global modified_ast
     if isinstance(astnode, Class):
 
         # check redefined Object
@@ -1415,8 +1417,6 @@ def tc( astnode, symbol_table = {}):
 
     elif isinstance(astnode, Method):
 
-
-
         if astnode.method_type.ident not in class_map.keys()+["SELF_TYPE"]:
             raise Exception("ERROR: "+astnode.method_name.line_num+\
                     ": Type-Check: class has method "+\
@@ -1444,14 +1444,19 @@ def tc( astnode, symbol_table = {}):
                 check_list.append(formal.formal_name.ident) 
 
     elif isinstance(astnode, Attribute):
+        
         if astnode.attr_name.ident == "self" :
             raise Exception("ERROR: "+astnode.attr_name.line_num + \
             ": Type-Check: class has an attribute named self")
+        if astnode.initialization :
+            attr_exp_type = tc(astnode.exp)
+
+        
     elif isinstance(astnode, Let):
 	if astnode.ident in symbol_table:
 	    symbol_tbale[astode.ident].push( (astnode.ident, astnode.type) )
 	else:
-	    symbol_talbe[astnode.ident] = [ (astnode.ident, astnode.type) ]
+	    symbol_table[astnode.ident] = [ (astnode.ident, astnode.type) ]
 
 	t1 = tc( astnode.exp, symbol_table )
 	
@@ -1462,33 +1467,93 @@ def tc( astnode, symbol_table = {}):
 	return t1
 
     elif isinstance(astnode, String):
+        astnode.exp_type = "String"
 	return "String"
 
     elif isinstance(astnode, Integer):
+        astnode.exp_type = "Int"
 	return "Integer"
 
     elif isinstance(astnode, Identifier):
-	if not astnode.ident_name in symbol_talbe:
+	if not astnode.ident_name in symbol_table:
 	    raise Exception ("ERROR: Unbound identifier " + astnode.ident_name + "\n")
 	else:
 	    return symbol_table[astnode.ident_name][-1][1]
 
     elif isinstance(astnode, Plus):
-	t1 = tc(astnode.e1, symbol_table)
-	t2 = tc(astnode.e2. symbol_talbe)
+	t1 = tc(astnode.lhs, symbol_table)
+	t2 = tc(astnode.rhs. symbol_table)
 	if (t1 == "Integer" and t2 == "Integer"):
 	    astnode.exp_type = "Integer"
 	    return "Integer"
 	else:
 	    raise Exception ("ERROR: Adding "+t1 + " to " + t2 + "\n")
-    
-    #else:
-    #	raise Exception ("ERROR: Unkown Expression type!")
+
+    elif isinstance(astnode, TrueExp):
+        astnode.exp_type = "Bool"
+        return "Bool" 
+
+    elif isinstance(astnode, FalseExp):
+        astnode.exp_type = "Bool"
+        return "Bool"    
+    elif isinstance(astnode, Assign):
+        assign_ident_type = tc(astnode.ident, symbol_table)
+        assign_exp_type = tc(astnode.exp, symbol_table)
+        astnode.exp_type = assign_exp_type
+        return astnode.exp_type
+
+    elif isinstance(astnode, New):
+        if astnode.ident.ident == "SELF_TYPE":
+            astnode.exp_type = "SELF_TYPE"
+        else :
+            astnode.exp_type = astnode.ident.ident
+        return astnode.exp_type
+
+    elif isinstance(astnode, If):
+        node_topo = []
+        then_body_type = tc(astnode.then_body, symbol_table)
+        else_body_type = tc(astnode.else_body, symbol_table)
+        temp = str(then_body_type) 
+        while(parent_map[temp]!= "Object"):
+            node_topo.append(temp)
+            temp = parent_map[temp]
+        
+        temp = str(else_body_type)
+        while(parent_map[temp]!= "Object"):
+            if temp in node_topo:
+                return temp
+            temp = parent_map[temp]
+        # if not found
+        return "Object"
+
+
+    elif isinstance(astnode, Block):
+        for exp in astnode.exp_list:
+            block_exp_type = tc(exp, symbol_table)
+        astnode.exp_type = block_exp_type
+        return block_exp_type
+
+    elif isinstance(astnode, While):
+        tc(astnode.predicate, symbol_table)
+        tc(astnode.body, symbol_table)
+        astnode.exp_type = "Object"
+        return "Object"
+        
+    elif isinstance(astnode, Isvoid):
+        tc(astnode.exp, symbol_table)
+        astnode.exp_type = "Bool"
+        return "Bool"
+
+    elif isinstance(astnode, IdentifierExp):
+        tc(astnode.ident, symbol_table)
+
+    else:
+    	raise Exception ("ERROR: Unkown Expression type!")
 
 def produce_class_map(cls,ast):
     global class_map
     class_list = [c for c in ast]
-    if cls.inherits_iden == None or cls.inherits_iden.ident in ["IO", "Object"]:
+    if cls.inherits_iden == None:
         class_map[cls.name_iden.ident]=cls.attributes
         return list(class_map[cls.name_iden.ident])
     elif cls.inherits_iden != None:
@@ -1504,9 +1569,29 @@ def produce_imp_map(cls, ast):
     global imp_map
     class_list = [c for c in ast]
     if cls.inherits_iden == None:
-        imp_map[cls.name_iden.ident] = imp_map["Object"]+[]
+        imp_map[cls.name_iden.ident] = []
+        for method in cls.methods :
+            imp_map[cls.name_iden.ident].append((cls.name_iden.ident, \
+                    method.method_name.ident))
+        #imp_map[cls.name_iden.ident] = imp_map["Object"]+[]
+        #parent_method_name_list = [method_tuple[1] for i,method_tuple in \
+        #        enumerate(imp_map["Object"])]
+        #for method in cls.methods:
+        #    if method.method_name.ident in parent_method_name_list :
+        #        i = parent_method_name_list.index(method.method_name.ident)
+        #        imp_map[cls.name_iden.ident][i]=(cls.name_iden.ident,
+        #                method.method_name.ident)
+        #    else:
+        #        imp_map[cls.name_iden.ident].append((cls.name_iden.ident, \
+        #            method.method_name.ident))
+        return list(imp_map[cls.name_iden.ident])
+    elif cls.inherits_iden != None:
+        parent_cls = filter(lambda x : x.name_iden.ident == cls.inherits_iden.ident,
+                        class_list)[0]
+        imp_map[cls.name_iden.ident] = produce_imp_map(parent_cls, ast)
         parent_method_name_list = [method_tuple[1] for i,method_tuple in \
-                enumerate(imp_map["Object"])]
+                enumerate(imp_map[parent_cls.name_iden.ident])]
+
         for method in cls.methods:
             if method.method_name.ident in parent_method_name_list :
                 i = parent_method_name_list.index(method.method_name.ident)
@@ -1516,18 +1601,17 @@ def produce_imp_map(cls, ast):
                 imp_map[cls.name_iden.ident].append((cls.name_iden.ident, \
                     method.method_name.ident))
         return list(imp_map[cls.name_iden.ident])
-    elif cls.inherits_iden != None:
-        if cls.inherits_iden.ident != "IO":
-            parent_cls = filter(lambda x : x.name_iden.ident == cls.inherits_iden.ident,
-                        class_list)[0]
-            #recursive call
-            imp_map[cls.name_iden.ident] = produce_imp_map(parent_cls, ast)
-            parent_method_name_list = [method_tuple[1] for i,method_tuple in \
-                enumerate(imp_map[cls.name_iden.ident])]
-        else:
-            imp_map[cls.name_iden.ident] = imp_map["IO"] + []
-            parent_method_name_list = [method_tuple[1] for i,method_tuple in \
-                enumerate(imp_map["IO"])]
+        #if cls.inherits_iden.ident != "IO":
+        #    parent_cls = filter(lambda x : x.name_iden.ident == cls.inherits_iden.ident,
+        #                class_list)[0]
+        #    #recursive call
+        #    imp_map[cls.name_iden.ident] = produce_imp_map(parent_cls, ast)
+        #    parent_method_name_list = [method_tuple[1] for i,method_tuple in \
+        #        enumerate(imp_map[cls.name_iden.ident])]
+        #else:
+        #    imp_map[cls.name_iden.ident] = imp_map["IO"] + []
+        #    parent_method_name_list = [method_tuple[1] for i,method_tuple in \
+        #        enumerate(imp_map["IO"])]
 
         for method in cls.methods:
             if method.method_name.ident in parent_method_name_list :
@@ -1543,31 +1627,27 @@ def produce_parent_map(ast):
     global parent_map
     class_list = [c for c in ast]
     for cls in class_list:
-        if cls.inherits_iden == None:
-            parent_map[cls.name_iden.ident] = "Object"
-        else:
+        if cls.inherits_iden != None:
             parent_map[cls.name_iden.ident] = cls.inherits_iden.ident
-            if cls.inherits_iden.ident == "IO":
-                parent_map["IO"] = "Object"
 
 def produce_internal_ast():
-    name_iden = Identifier(0, "Object")
+    name_iden = Identifier("0", "Object")
     inherits_iden = None
     method_names = {"abort":"Object","type_name":"String","copy":"SELF_TYPE"}
     methods = [] 
-    method = Method(Identifier(0,"abort"), [],Identifier(0,"Object"),None)
+    method = Method(Identifier("0","abort"), [],Identifier("0","Object"),None)
     method.body_exp = "0" +"\n" +\
                           method.method_type.ident +\
                           "\ninternal\n"+name_iden.ident+"." +\
                           method.method_name.ident+"\n"
     methods.append(method)
-    method = Method(Identifier(0,"type_name"), [],Identifier(0,"String"),None)
+    method = Method(Identifier("0","copy"), [],Identifier("0","SELF_TYPE"),None)
     method.body_exp = "0" +"\n" +\
                           method.method_type.ident +\
                           "\ninternal\n"+name_iden.ident+"." +\
                           method.method_name.ident+"\n"
     methods.append(method)
-    method = Method(Identifier(0,"copy"), [],Identifier(0,"SELF_TYPE"),None)
+    method = Method(Identifier("0","type_name"), [],Identifier("0","String"),None)
     method.body_exp = "0" +"\n" +\
                           method.method_type.ident +\
                           "\ninternal\n"+name_iden.ident+"." +\
@@ -1575,32 +1655,32 @@ def produce_internal_ast():
     methods.append(method)
     Object_class = Class(name_iden, inherits_iden, [],methods, methods+[])
 
-    name_iden = Identifier(0, "IO")
-    inherits_iden = Identifier(0,"Object") 
+    name_iden = Identifier("0", "IO")
+    inherits_iden = Identifier("0","Object") 
     methods = []
-    method = Method(Identifier(0,"out_string"),
-            [Formal(Identifier(0,"x"),Identifier(0,"String"))],Identifier(0,"SELF_TYPE"),None)
+    method = Method(Identifier("0","in_int"),
+            [],Identifier("0","Int"),None)
     method.body_exp = "0" +"\n" +\
                           method.method_type.ident +\
                           "\ninternal\n"+name_iden.ident+"." +\
                           method.method_name.ident+"\n"
     methods.append(method)
-    method = Method(Identifier(0,"out_int"),
-            [Formal(Identifier(0,"x"),Identifier(0,"Int"))],Identifier(0,"SELF_TYPE"),None)
+    method = Method(Identifier("0","in_string"),
+            [],Identifier("0","String"),None)
     method.body_exp = "0" +"\n" +\
                           method.method_type.ident +\
                           "\ninternal\n"+name_iden.ident+"." +\
                           method.method_name.ident+"\n"
     methods.append(method)
-    method = Method(Identifier(0,"in_string"),
-            [],Identifier(0,"String"),None)
+    method = Method(Identifier("0","out_int"),
+            [Formal(Identifier("0","x"),Identifier("0","Int"))],Identifier("0","SELF_TYPE"),None)
     method.body_exp = "0" +"\n" +\
                           method.method_type.ident +\
                           "\ninternal\n"+name_iden.ident+"." +\
                           method.method_name.ident+"\n"
     methods.append(method)
-    method = Method(Identifier(0,"in_int"),
-            [],Identifier(0,"Int"),None)
+    method = Method(Identifier("0","out_string"),
+            [Formal(Identifier("0","x"),Identifier("0","String"))],Identifier("0","SELF_TYPE"),None)
     method.body_exp = "0" +"\n" +\
                           method.method_type.ident +\
                           "\ninternal\n"+name_iden.ident+"." +\
@@ -1608,36 +1688,36 @@ def produce_internal_ast():
     methods.append(method)
     IO_class = Class(name_iden, inherits_iden, [],methods, methods+[])
     
-    name_iden = Identifier(0, "Int")
-    inherits_iden = Identifier(0,"Object")
+    name_iden = Identifier("0", "Int")
+    inherits_iden = Identifier("0","Object")
     methods = []
     Int_class = Class(name_iden, inherits_iden, [],methods, methods+[])
 
-    name_iden = Identifier(0, "Bool")
-    inherits_iden = Identifier(0,"Object")
+    name_iden = Identifier("0", "Bool")
+    inherits_iden = Identifier("0","Object")
     methods = []
     Bool_class = Class(name_iden, inherits_iden, [],methods, methods+[])
 
-    name_iden = Identifier(0, "String")
-    inherits_iden = Identifier(0,"Object")
+    name_iden = Identifier("0", "String")
+    inherits_iden = Identifier("0","Object")
     methods = []
-    method = Method(Identifier(0,"length"),
-            [],Identifier(0,"Int"),None)
+    method = Method(Identifier("0","concat"),
+            [Formal(Identifier("0","s"),Identifier("0","String"))],Identifier("0","String"),None)
     method.body_exp = "0" +"\n" +\
                           method.method_type.ident +\
                           "\ninternal\n"+name_iden.ident+"." +\
                           method.method_name.ident+"\n"
     methods.append(method)
-    method = Method(Identifier(0,"concat"),
-            [Formal(Identifier(0,"s"),Identifier(0,"String"))],Identifier(0,"String"),None)
+    method = Method(Identifier("0","length"),
+            [],Identifier("0","Int"),None)
     method.body_exp = "0" +"\n" +\
                           method.method_type.ident +\
                           "\ninternal\n"+name_iden.ident+"." +\
                           method.method_name.ident+"\n"
     methods.append(method)
-    method = Method(Identifier(0,"substr"),
-            [Formal(Identifier(0,"i"),Identifier(0,"Int")), 
-             Formal(Identifier(0,"l"),Identifier(0,"Int"))],Identifier(0,"String"),None)
+    method = Method(Identifier("0","substr"),
+            [Formal(Identifier("0","i"),Identifier("0","Int")), 
+             Formal(Identifier("0","l"),Identifier("0","Int"))],Identifier("0","String"),None)
     method.body_exp = "0" +"\n" +\
                           method.method_type.ident +\
                           "\ninternal\n"+name_iden.ident+"." +\
@@ -1686,6 +1766,14 @@ def print_class_map(class_map, ast):
                             + attribute.attr_type.ident + "\n"
     fout.write(ret)
 
+def print_parent_map(parent_map, ast):
+    parent_map = sorted(parent_map.items())
+    ret = "parent_map\n"
+    ret += str(len(parent_map)) + "\n"
+    for child, parent in parent_map:
+        ret += child + "\n" + parent+"\n"
+    fout.write(ret)
+
 def main():
     global class_map_print_flag
     global ast_lines
@@ -1693,6 +1781,7 @@ def main():
     global imp_map
     global parent_map
     global ast
+    global modified_ast
     if len(sys.argv) < 2:
         print("Specify .cl-ast input file.")
         exit()
@@ -1701,7 +1790,14 @@ def main():
         ast_lines = [l.rstrip() for l in f.readlines()]
     internal_ast = produce_internal_ast()
     ast = read_ast()
-    produce_parent_map(ast) 
+
+    modified_ast = copy.deepcopy(ast)
+    for i,cls in enumerate(modified_ast):
+        if cls.inherits_iden == None:
+            modified_ast[i].inherits_iden = Identifier("3", "Object")
+    modified_ast = modified_ast + internal_ast
+
+    produce_parent_map(modified_ast)
 
     ### check if class is defined more than once
     for i, cls in enumerate(ast):
@@ -1714,12 +1810,12 @@ def main():
 
     ## check class inherits from bool int string self_type
     for cls in ast:
-        if cls.inherits_iden != None :
-            if cls.inherits_iden.ident in ["Int","Bool", "String", "SELF_TYPE"]:
-                    print "ERROR: "+ cls.inherits_iden.line_num + \
-                    ": Type-Check: class Main inherits from " + \
-                    cls.inherits_iden.ident
-                    exit()
+        if cls.inherits_iden != None:
+            if cls.inherits_iden.ident in ["Int","Bool","String", "SELF_TYPE"]:
+                        print "ERROR: "+ cls.inherits_iden.line_num + \
+                        ": Type-Check: class Main inherits from " + \
+                        cls.inherits_iden.ident
+                        exit()
 
 
     ### check if class inherits from nonexistent class
@@ -1733,10 +1829,8 @@ def main():
             if (not cls.inherits_iden.ident in class_names):
                 print "ERROR: " + cls.inherits_iden.line_num + " : "\
                     "Type-Check: Class inherits from non-existent class:"\
-                    + cls.inherits_iden.ident + "\n"
+                    + cls.inherits_iden.ident
                 exit()
-    
-
     ### check the existance of Main class
     if "Main" not in [cls.name_iden.ident for cls in ast]:
         print "ERROR: 0: Type-Check: class Main not found"
@@ -1744,27 +1838,25 @@ def main():
     
     ### check inherits circle
     def visit(current_cls):
-        if current_cls.inherits_iden == None or current_cls.inherits_iden.ident\
-                == "IO":
+        if current_cls.inherits_iden == None :
             return 0
         if current_cls.name_iden.ident in t_marked:
             print "ERROR: 0: Type-Check: inheritance cycle"
             exit(0)
         t_marked.append(current_cls.name_iden.ident)
         parent_cls = filter(lambda x : x.name_iden.ident == current_cls.inherits_iden.ident,
-                        internal_ast+ast)[0]
+                        modified_ast)[0]
         visit(parent_cls)
 
     t_marked = []
-    for cls in ast:
+    for cls in modified_ast:
         t_marked=[]
         visit(cls)
 
     ### 
-    produce_parent_map(ast)
-    for cls in ast:
-        produce_class_map(cls, internal_ast + ast)
-        produce_imp_map(cls, internal_ast + ast)
+    for cls in modified_ast:
+        produce_class_map(cls, modified_ast)
+        produce_imp_map(cls, modified_ast)
 
     try:
         for cls in ast:
@@ -1773,11 +1865,11 @@ def main():
 	print e.message
         exit()
     ### successful type checking, print AAST
-    
-    print_class_map(class_map, ast+internal_ast)
+    class_map_print_flag = 1 
+    print_class_map(class_map, modified_ast)
     class_map_print_flag = 1
-    print_imp_map(imp_map,ast+internal_ast)
-    print_parent_map(ast)
+    print_imp_map(imp_map, modified_ast)
+    print_parent_map(parent_map, modified_ast)
     #print str(len(ast))
     fout.write(str(len(ast))+"\n")
     for cls in ast:
