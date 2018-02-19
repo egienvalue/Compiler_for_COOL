@@ -1478,9 +1478,9 @@ def tc(current_cls, astnode, symbol_table = {}):
     elif isinstance(astnode, Let):
         print("d")
 
-        for binding in astnode.binding_list:
-            if binding.initialization:
-                binding_type = tc(current_cls,binding.value_exp,symbol_table)
+        for i in range(len(astnode.binding_list)):
+            if astnode.binding_list[i].initialization:
+                binding_type = tc(current_cls,astnode.binding_list[i].value_exp,symbol_table)
                 #TODO
         for binding in astnode.binding_list:
             if binding.var_ident.ident in symbol_table:
@@ -1531,7 +1531,7 @@ def tc(current_cls, astnode, symbol_table = {}):
         print("g")
 
         t1 = tc(current_cls,astnode.lhs, symbol_table)
-        t2 = tc(current_cls,astnode.lhs, symbol_table)
+        t2 = tc(current_cls,astnode.rhs, symbol_table)
         if(t1 != t2):
             raise Exception ("ERROR: cannot compare "+t1 + "with" + t2 + "\n")
         astnode.exp_type = "Bool"
@@ -1567,8 +1567,11 @@ def tc(current_cls, astnode, symbol_table = {}):
         print("g")
 
         node_topo = []
+        predicate_type = tc(current_cls, astnode.predicate, symbol_table)
         then_body_type = tc(current_cls,astnode.then_body, symbol_table)
         else_body_type = tc(current_cls,astnode.else_body, symbol_table)
+        astnode.then_body.exp_type = then_body_type
+        astnode.else_body.exp_type = else_body_type
         print then_body_type
         temp = str(then_body_type)
         if temp != "SELF_TYPE" :
@@ -1583,17 +1586,20 @@ def tc(current_cls, astnode, symbol_table = {}):
         print temp
         while(parent_map.get(temp)!=None):
             if temp in node_topo:
+                astnode.exp_type = temp
                 return temp
             temp = parent_map[temp]
         # if not found
+        astnode.exp_type = "Object"
         return "Object"
 
 
     elif isinstance(astnode, Block):
         print("k")
 
-        for exp in astnode.exp_list:
-            block_exp_type = tc(current_cls,exp, symbol_table)
+        for i in range(len(astnode.exp_list)):
+            block_exp_type = tc(current_cls,astnode.exp_list[i], symbol_table)
+            astnode.exp_list[i].exp_type = block_exp_type
             print block_exp_type + " : Block"
         astnode.exp_type = block_exp_type
         print block_exp_type + " : Block"
@@ -1622,7 +1628,7 @@ def tc(current_cls, astnode, symbol_table = {}):
     elif isinstance(astnode, Not):
         print("o")
 
-        tc(current_cls,astnode.exp, symbol_table)
+        astnode.exp.exp_type = tc(current_cls,astnode.exp, symbol_table)
         astnode.exp_type = "Bool"
         return "Bool"
     elif isinstance(astnode, Negate):
@@ -1640,6 +1646,14 @@ def tc(current_cls, astnode, symbol_table = {}):
         method_instance = [_method for _method in cls_instance.methods if \
                                 _method.method_name.ident ==\
                                 astnode.method_ident.ident][0]
+        if isinstance(method_instance.body_exp, str):
+            astnode.exp_type = method_instance.method_type.ident
+            return astnode.exp_type
+            #print astnode.exp_type
+        else:
+            astnode.exp_type = method_instance.method_type.ident
+            return astnode.exp_type
+
         if method_instance.body_exp.exp_type == "SELF_TYPE":
             astnode.exp_type = d_dispatch_exp_type
             return d_dispatch_exp_type
@@ -1655,6 +1669,15 @@ def tc(current_cls, astnode, symbol_table = {}):
         method_instance = [_method for _method in cls_instance.methods if \
                                 _method.method_name.ident ==\
                                 astnode.method_ident.ident][0]
+
+        if isinstance(method_instance.body_exp, str):
+            astnode.exp_type = method_instance.method_type.ident
+            return astnode.exp_type
+            #print astnode.exp_type
+        else:
+            astnode.exp_type = method_instance.method_type.ident
+            return astnode.exp_type
+
         if method_instance.body_exp.exp_type == "SELF_TYPE":
             astnode.exp_type = s_dispatch_exp_type
             return s_dispatch_exp_type
@@ -2005,15 +2028,15 @@ def main():
         exit()
     ### successful type checking, print AAST
     class_map_print_flag = 1 
-    #print_class_map(class_map, modified_ast)
+    print_class_map(class_map, modified_ast)
     class_map_print_flag = 1
     print_imp_map(imp_map, ast+internal_ast)
-    #print_parent_map(parent_map, modified_ast)
+    print_parent_map(parent_map, modified_ast)
     #print str(len(ast))
-    #fout.write(str(len(ast))+"\n")
-    #for cls in ast:
+    fout.write(str(len(ast))+"\n")
+    for cls in ast:
         #print cls
-        #fout.write(str(cls))
+        fout.write(str(cls))
     
                 
 
