@@ -10,7 +10,7 @@ ast_lines = []
 class_list = []
 ast = []
 class_map_print_flag = 0
-type_filename = "my_" +  (sys.argv[1])[:-4] + "-type"
+type_filename =   (sys.argv[1])[:-4] + "-type"
 fout = open(type_filename, 'w')
 class_map = {"Object":[], "Int":[], "String":[], "Bool":[], "IO":[]}
 imp_map = \
@@ -1540,7 +1540,7 @@ def tc(current_cls, astnode, symbol_table = {}):
 
         t1 = tc(current_cls,astnode.lhs, symbol_table)
         t2 = tc(current_cls,astnode.rhs, symbol_table)
-        if(t1 != t2):
+        if t1 in ["Bool","Int","String"] and (t1 != t2):
             raise Exception ("ERROR: cannot compare "+t1 + "with" + t2 + "\n")
         astnode.exp_type = "Bool"
         return "Bool"         
@@ -1578,7 +1578,11 @@ def tc(current_cls, astnode, symbol_table = {}):
         predicate_type = tc(current_cls, astnode.predicate, symbol_table)
         then_body_type = tc(current_cls,astnode.then_body, symbol_table)
         else_body_type = tc(current_cls,astnode.else_body, symbol_table)
-        print then_body_type
+        if then_body_type == "SELF_TYPE":
+            then_body_type == current_cls.name_iden.ident
+        if else_body_type == "SELF_TYPE":
+            else_body_type == current_cls.name_iden.ident
+
         astnode.exp_type = find_common_ancestor(then_body_type, else_body_type)
         return astnode.exp_type
 
@@ -1628,9 +1632,13 @@ def tc(current_cls, astnode, symbol_table = {}):
     elif isinstance(astnode, Dynamic_Dispatch):
         print "Dynamic_Dispatch"
         d_dispatch_exp_type = tc(current_cls,astnode.exp, symbol_table)
+        if d_dispatch_exp_type == "SELF_TYPE":
+            d_dispatch_exp_type_new = current_cls.name_iden.ident
+        else:
+            d_dispatch_exp_type_new = d_dispatch_exp_type
         for arg in astnode.args:
             tc(current_cls,arg,symbol_table)
-        method_tuple = [x for x in imp_map[d_dispatch_exp_type] if\
+        method_tuple = [x for x in imp_map[d_dispatch_exp_type_new] if\
                 x[1]==astnode.method_ident.ident]
         method_tuple = method_tuple[0]
         cls_instance = [_cls for _cls in ast+internal_ast if _cls.name_iden.ident == \
@@ -1645,19 +1653,22 @@ def tc(current_cls, astnode, symbol_table = {}):
             #print astnode.exp_type
         else:
             if method_instance.body_exp.exp_type == "SELF_TYPE":
-                astnode.exp_type = d_dispatch_exp_type
-                return d_dispatch_exp_type
+                astnode.exp_type = d_dispatch_exp_type_new
+                return astnode.exp_type
             else:
                 astnode.exp_type = method_instance.method_type.ident
                 return astnode.exp_type
     elif isinstance(astnode, Static_Dispatch):
         print "Static_Dispatch"
         s_dispatch_exp_type = tc(current_cls,astnode.exp, symbol_table)
-
+        if s_dispatch_exp_type == "SELF_TYPE":
+            s_dispatch_exp_type_new = current_cls.name_iden.ident
+        else:
+            s_dispatch_exp_type_new = s_dispatch_exp_type
         for arg in astnode.args:
             tc(current_cls,arg,symbol_table)
         
-        method_tuple = [x for x in imp_map[s_dispatch_exp_type] if\
+        method_tuple = [x for x in imp_map[s_dispatch_exp_type_new] if\
                 x[1]==astnode.method_ident.ident]
         method_tuple = method_tuple[0]
         cls_instance = [_cls for _cls in ast+internal_ast if _cls.name_iden.ident == \
@@ -1671,11 +1682,10 @@ def tc(current_cls, astnode, symbol_table = {}):
             astnode.exp_type = method_instance.method_type.ident
             return astnode.exp_type
             #print astnode.exp_type
-        else: 
-    
+        else:  
             if method_instance.body_exp.exp_type == "SELF_TYPE":
-                astnode.exp_type = s_dispatch_exp_type
-                return s_dispatch_exp_type
+                astnode.exp_type = s_dispatch_exp_type_new 
+                return astnode.exp_type
             else:
                 astnode.exp_type = method_instance.method_type.ident
                 return astnode.exp_type
