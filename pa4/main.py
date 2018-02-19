@@ -10,7 +10,7 @@ ast_lines = []
 class_list = []
 ast = []
 class_map_print_flag = 0
-type_filename = "my_"+  (sys.argv[1])[:-4] + "-type"
+type_filename = "my_" + (sys.argv[1])[:-4] + "-type"
 fout = open(type_filename, 'w')
 class_map = {"Object":[], "Int":[], "String":[], "Bool":[], "IO":[]}
 imp_map = \
@@ -1412,10 +1412,16 @@ def tc(current_cls, astnode, symbol_table = {}):
         if astnode.attributes != [] :
             for attribute in astnode.attributes:
                 tc(current_cls,attribute)
-        
+
+        for attribute in class_map[astnode.name_iden.ident]:
+            if attribute.attr_name.ident in symbol_table:
+                symbol_table[attribute.attr_name.ident].append((attribute.attr_name.ident,attribute.attr_type.ident))
+            else:
+                symbol_table[attribute.attr_name.ident]=[(attribute.attr_name.ident,attribute.attr_type.ident)] 
+
         if astnode.methods != [] :
             for method in astnode.methods:
-                tc(current_cls,method)
+                tc(current_cls,method,symbol_table)
 
     elif isinstance(astnode, Method):
         print("b")
@@ -1486,6 +1492,7 @@ def tc(current_cls, astnode, symbol_table = {}):
         for binding in astnode.binding_list:	
 	    symbol_table[binding.var_ident.ident].pop()
 
+        print t1 + ": Let"
 	astnode.exp_type = t1
 	return t1
 
@@ -1515,8 +1522,8 @@ def tc(current_cls, astnode, symbol_table = {}):
 	t1 = tc(current_cls,astnode.lhs, symbol_table)
 	t2 = tc(current_cls,astnode.rhs, symbol_table)
 	if (t1 == "Integer" and t2 == "Integer"):
-	    astnode.exp_type = "Integer"
-	    return "Integer"
+	    astnode.exp_type = "Int"
+	    return "Int"
 	else:
 	    raise Exception ("ERROR: Adding \n")
 
@@ -1544,6 +1551,7 @@ def tc(current_cls, astnode, symbol_table = {}):
         assign_ident_type = tc(current_cls,astnode.ident, symbol_table)
         assign_exp_type = tc(current_cls,astnode.exp, symbol_table)
         astnode.exp_type = assign_exp_type
+        print astnode.exp_type + ": Assign"
         return astnode.exp_type
 
     elif isinstance(astnode, New):
@@ -1564,7 +1572,7 @@ def tc(current_cls, astnode, symbol_table = {}):
         print then_body_type
         temp = str(then_body_type)
         if temp != "SELF_TYPE" :
-            while(parent_map[temp]!= "Object"):
+            while(parent_map.get(temp)!=None):
                 node_topo.append(temp)
                 temp = parent_map[temp]
         else:
@@ -1573,7 +1581,7 @@ def tc(current_cls, astnode, symbol_table = {}):
        
         temp = str(else_body_type)
         print temp
-        while(parent_map[temp]!= "Object"):
+        while(parent_map.get(temp)!=None):
             if temp in node_topo:
                 return temp
             temp = parent_map[temp]
@@ -1627,7 +1635,7 @@ def tc(current_cls, astnode, symbol_table = {}):
         for arg in astnode.args:
             tc(current_cls,arg,symbol_table)
         d_dispatch_exp_type = tc(current_cls,astnode.exp, symbol_table)
-        cls_instance = [_cls for _cls in modified_ast if _cls.name_iden.ident == \
+        cls_instance = [_cls for _cls in ast+internal_ast if _cls.name_iden.ident == \
                     d_dispatch_exp_type][0]
         method_instance = [_method for _method in cls_instance.methods if \
                                 _method.method_name.ident ==\
@@ -1636,8 +1644,8 @@ def tc(current_cls, astnode, symbol_table = {}):
             astnode.exp_type = d_dispatch_exp_type
             return d_dispatch_exp_type
         else:
-            astnode.exp_type = method_instance.body_exp.exp_type
-            return method_instance.body_exp.exp_type
+            astnode.exp_type = method_instance.method_type.ident
+            return astnode.exp_type
     elif isinstance(astnode, Static_Dispatch):
         for arg in astnode.args:
             tc(current_cls,arg,symbol_table)
@@ -1651,8 +1659,8 @@ def tc(current_cls, astnode, symbol_table = {}):
             astnode.exp_type = s_dispatch_exp_type
             return s_dispatch_exp_type
         else:
-            astnode.exp_type = method_instance.body_exp.exp_type
-            return method_instance.body_exp.exp_type
+            astnode.exp_type = method_instance.method_type.ident
+            return astnode.exp_type
 
     elif isinstance(astnode, Self_Dispatch):
         for arg in astnode.args:
@@ -1669,7 +1677,7 @@ def tc(current_cls, astnode, symbol_table = {}):
             astnode.exp_type = method_instance.method_type.ident
             #print astnode.exp_type
         else:
-            astnode.exp_type = method_instance.body_exp.exp_type
+            astnode.exp_type = method_instance.method_type.ident
         print astnode.exp_type + ": Self_Dispatch"
         return astnode.exp_type
 
@@ -1997,15 +2005,15 @@ def main():
         exit()
     ### successful type checking, print AAST
     class_map_print_flag = 1 
-    print_class_map(class_map, modified_ast)
+    #print_class_map(class_map, modified_ast)
     class_map_print_flag = 1
     print_imp_map(imp_map, ast+internal_ast)
-    print_parent_map(parent_map, modified_ast)
+    #print_parent_map(parent_map, modified_ast)
     #print str(len(ast))
-    fout.write(str(len(ast))+"\n")
-    for cls in ast:
+    #fout.write(str(len(ast))+"\n")
+    #for cls in ast:
         #print cls
-        fout.write(str(cls))
+        #fout.write(str(cls))
     
                 
 
