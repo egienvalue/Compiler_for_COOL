@@ -10,7 +10,8 @@ ast_lines = []
 class_list = []
 ast = []
 class_map_print_flag = 0
-type_filename =  "my_" + (sys.argv[1])[:-4] + "-type"
+type_filename = "my_" + (sys.argv[1])[:-4] + "-type"
+#type_filename =  (sys.argv[1])[:-4] + "-type"
 fout = open(type_filename, 'w')
 class_map = {"Object":[], "Int":[], "String":[], "Bool":[], "IO":[]}
 imp_map = \
@@ -1578,11 +1579,14 @@ def tc(current_cls, astnode, symbol_table = {}):
         predicate_type = tc(current_cls, astnode.predicate, symbol_table)
         then_body_type = tc(current_cls,astnode.then_body, symbol_table)
         else_body_type = tc(current_cls,astnode.else_body, symbol_table)
+        if then_body_type == "SELF_TYPE" and else_body_type == "SELF_TYPE":
+            astnode.exp_type = "SELF_TYPE"
+            return astnode.exp_type
+
         if then_body_type == "SELF_TYPE":
             then_body_type = current_cls.name_iden.ident
         if else_body_type == "SELF_TYPE":
             else_body_type = current_cls.name_iden.ident
-
         astnode.exp_type = find_common_ancestor(then_body_type, else_body_type)
         return astnode.exp_type
 
@@ -1647,13 +1651,14 @@ def tc(current_cls, astnode, symbol_table = {}):
         method_instance = [_method for _method in cls_instance.methods if \
                                 _method.method_name.ident ==\
                                 method_tuple[1]][0]
-        if method_instance.body_exp.exp_type == "No_TYPE":
-            tc(cls_instance,cls_instance)
+        
         if isinstance(method_instance.body_exp, str):
             astnode.exp_type = method_instance.method_type.ident
             return astnode.exp_type
             #print astnode.exp_type
         else:
+            #if method_instance.body_exp.exp_type == "No_TYPE":
+            #    tc(cls_instance,cls_instance)
             if method_instance.body_exp.exp_type == "SELF_TYPE":
                 astnode.exp_type = d_dispatch_exp_type_new
                 return astnode.exp_type
@@ -1680,13 +1685,13 @@ def tc(current_cls, astnode, symbol_table = {}):
                                 _method.method_name.ident ==\
                                 method_tuple[1]][0] 
 
-        if method_instance.body_exp.exp_type == "No_TYPE":
-            tc(cls_instance,cls_instance)
         if isinstance(method_instance.body_exp, str):
             astnode.exp_type = method_instance.method_type.ident
             return astnode.exp_type
             #print astnode.exp_type
         else:
+            #if method_instance.body_exp.exp_type == "No_TYPE":
+            #    tc(cls_instance,cls_instance)
             if method_instance.body_exp.exp_type == "SELF_TYPE":
                 astnode.exp_type = s_dispatch_exp_type_new
                 return astnode.exp_type
@@ -2083,10 +2088,10 @@ def main():
         exit()
     ### successful type checking, print AAST
     class_map_print_flag = 1 
-    #print_class_map(class_map, modified_ast)
+    print_class_map(class_map, modified_ast)
     class_map_print_flag = 1
-    #print_imp_map(imp_map, ast+internal_ast)
-    #print_parent_map(parent_map, modified_ast)
+    print_imp_map(imp_map, ast+internal_ast)
+    print_parent_map(parent_map, modified_ast)
     #print str(len(ast))
     fout.write(str(len(ast))+"\n")
     for cls in ast:
