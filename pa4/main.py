@@ -10,7 +10,7 @@ ast_lines = []
 class_list = []
 ast = []
 class_map_print_flag = 0
-type_filename = "my_" + (sys.argv[1])[:-4] + "-type"
+type_filename = "my_" +  (sys.argv[1])[:-4] + "-type"
 fout = open(type_filename, 'w')
 class_map = {"Object":[], "Int":[], "String":[], "Bool":[], "IO":[]}
 imp_map = \
@@ -1370,7 +1370,7 @@ def tc(current_cls, astnode, symbol_table = {}):
     global modified_ast
     global internal_ast
     if isinstance(astnode, Class):
-        print("a")
+        print("Class")
         # check redefined Object
         if astnode.name_iden.ident in ["Object","Int","String","Bool","SELF_TYPE", "IO"]:
             raise Exception("ERROR: "+astnode.name_iden.line_num+": Type-Check: class "+astnode.name_iden.ident+" redefined")
@@ -1410,21 +1410,27 @@ def tc(current_cls, astnode, symbol_table = {}):
  
         # check every attibute
         if astnode.attributes != [] :
-            for attribute in astnode.attributes:
-                tc(current_cls,attribute)
+            for attribute in class_map[astnode.name_iden.ident]:
+                tc(current_cls,attribute,symbol_table)
+                if attribute.attr_name.ident in symbol_table:
+                    symbol_table[attribute.attr_name.ident].append((attribute.attr_name.ident,attribute.attr_type.ident))
+                else:
+                    symbol_table[attribute.attr_name.ident]=[(attribute.attr_name.ident,attribute.attr_type.ident)] 
 
-        for attribute in class_map[astnode.name_iden.ident]:
-            if attribute.attr_name.ident in symbol_table:
-                symbol_table[attribute.attr_name.ident].append((attribute.attr_name.ident,attribute.attr_type.ident))
-            else:
-                symbol_table[attribute.attr_name.ident]=[(attribute.attr_name.ident,attribute.attr_type.ident)] 
+        #for attribute in astnode.attributes:
+        #    tc(current_cls,attribute,symbol_table)
+        #for attribute in class_map[astnode.name_iden.ident]:
+        #    if attribute.attr_name.ident in symbol_table:
+        #        symbol_table[attribute.attr_name.ident].append((attribute.attr_name.ident,attribute.attr_type.ident))
+        #    else:
+        #        symbol_table[attribute.attr_name.ident]=[(attribute.attr_name.ident,attribute.attr_type.ident)] 
 
         if astnode.methods != [] :
             for method in astnode.methods:
                 tc(current_cls,method,symbol_table)
 
     elif isinstance(astnode, Method):
-        print("b")
+        print("Method")
 
         if astnode.method_type.ident not in class_map.keys()+["SELF_TYPE"]:
             raise Exception("ERROR: "+astnode.method_name.line_num+\
@@ -1466,17 +1472,17 @@ def tc(current_cls, astnode, symbol_table = {}):
 
 
     elif isinstance(astnode, Attribute):
-        print("c")
+        print astnode.attr_name.ident
         
         if astnode.attr_name.ident == "self":
             raise Exception("ERROR: "+astnode.attr_name.line_num + \
             ": Type-Check: class has an attribute named self")
-        if astnode.initialization :
-            attr_exp_type = tc(current_cls,astnode.exp)
+        if astnode.exp != None :
+            tc(current_cls,astnode.exp, symbol_table)
 
         
     elif isinstance(astnode, Let):
-        print("d")
+        print("Let")
 
         for i in range(len(astnode.binding_list)):
             if astnode.binding_list[i].initialization:
@@ -1505,7 +1511,7 @@ def tc(current_cls, astnode, symbol_table = {}):
 	return "Int"
 
     elif isinstance(astnode, Identifier):
-        print("e")
+        print("Identifier")
         if astnode.ident == "self":
             #astnode.exp_type = "SELF_TYPE"
             return "SELF_TYPE"
@@ -1517,18 +1523,20 @@ def tc(current_cls, astnode, symbol_table = {}):
 	    return symbol_table[astnode.ident][-1][1]
 
     elif isinstance(astnode, (Plus, Minus, Times, Divide)):
-        print("f")
+        print("Arithmic")
 
 	t1 = tc(current_cls,astnode.lhs, symbol_table)
 	t2 = tc(current_cls,astnode.rhs, symbol_table)
-	if (t1 == "Integer" and t2 == "Integer"):
+	if (t1 == "Int" and t2 == "Int"):
 	    astnode.exp_type = "Int"
 	    return "Int"
 	else:
+            print t1
+            print t2 
 	    raise Exception ("ERROR: Adding \n")
 
     elif isinstance(astnode, (Le, Eq, Lt)):
-        print("g")
+        print("Compare")
 
         t1 = tc(current_cls,astnode.lhs, symbol_table)
         t2 = tc(current_cls,astnode.rhs, symbol_table)
@@ -1546,7 +1554,7 @@ def tc(current_cls, astnode, symbol_table = {}):
         astnode.exp_type = "Bool"
         return "Bool"    
     elif isinstance(astnode, Assign):
-        print("h")
+        print("Assign")
 
         assign_ident_type = tc(current_cls,astnode.ident, symbol_table)
         assign_exp_type = tc(current_cls,astnode.exp, symbol_table)
@@ -1555,7 +1563,7 @@ def tc(current_cls, astnode, symbol_table = {}):
         return astnode.exp_type
 
     elif isinstance(astnode, New):
-        print("i")
+        print("New")
 
         if astnode.ident.ident == "SELF_TYPE":
             astnode.exp_type = "SELF_TYPE"
@@ -1564,49 +1572,29 @@ def tc(current_cls, astnode, symbol_table = {}):
         return astnode.exp_type
 
     elif isinstance(astnode, If):
-        print("g")
+        print("If")
 
         node_topo = []
         predicate_type = tc(current_cls, astnode.predicate, symbol_table)
         then_body_type = tc(current_cls,astnode.then_body, symbol_table)
         else_body_type = tc(current_cls,astnode.else_body, symbol_table)
-        astnode.then_body.exp_type = then_body_type
-        astnode.else_body.exp_type = else_body_type
         print then_body_type
-        temp = str(then_body_type)
-        if temp != "SELF_TYPE" :
-            while(parent_map.get(temp)!=None):
-                node_topo.append(temp)
-                temp = parent_map[temp]
-        else:
-            node_topo.append("SELF_TYPE")
-            node_topo.append("Object")
-       
-        temp = str(else_body_type)
-        print temp
-        while(parent_map.get(temp)!=None):
-            if temp in node_topo:
-                astnode.exp_type = temp
-                return temp
-            temp = parent_map[temp]
-        # if not found
-        astnode.exp_type = "Object"
-        return "Object"
+        astnode.exp_type = find_common_ancestor(then_body_type, else_body_type)
+        return astnode.exp_type
 
 
     elif isinstance(astnode, Block):
-        print("k")
+        print("Block")
 
         for i in range(len(astnode.exp_list)):
             block_exp_type = tc(current_cls,astnode.exp_list[i], symbol_table)
-            astnode.exp_list[i].exp_type = block_exp_type
             print block_exp_type + " : Block"
         astnode.exp_type = block_exp_type
         print block_exp_type + " : Block"
         return block_exp_type
 
     elif isinstance(astnode, While):
-        print("l")
+        print("While")
 
         tc(current_cls,astnode.predicate, symbol_table)
         tc(current_cls,astnode.body, symbol_table)
@@ -1614,78 +1602,86 @@ def tc(current_cls, astnode, symbol_table = {}):
         return "Object"
         
     elif isinstance(astnode, Isvoid):
-        print("m")
+        print("Isvoid")
 
         tc(current_cls,astnode.exp, symbol_table)
         astnode.exp_type = "Bool"
         return "Bool"
     elif isinstance(astnode, IdentifierExp):
-        print("n")
+        print("IdentifierExp")
         t1 = tc(current_cls,astnode.ident, symbol_table)
         astnode.exp_type = t1
         return t1
 
     elif isinstance(astnode, Not):
-        print("o")
+        print("Not")
 
-        astnode.exp.exp_type = tc(current_cls,astnode.exp, symbol_table)
+        tc(current_cls,astnode.exp, symbol_table)
         astnode.exp_type = "Bool"
         return "Bool"
     elif isinstance(astnode, Negate):
-        print("p")
+        print("Negate")
 
         tc(current_cls,astnode.exp, symbol_table)
         astnode.exp_type = "Int"
         return "Int"
     elif isinstance(astnode, Dynamic_Dispatch):
-        for arg in astnode.args:
-            tc(current_cls,arg,symbol_table)
+        print "Dynamic_Dispatch"
         d_dispatch_exp_type = tc(current_cls,astnode.exp, symbol_table)
-        cls_instance = [_cls for _cls in ast+internal_ast if _cls.name_iden.ident == \
-                    d_dispatch_exp_type][0]
-        method_instance = [_method for _method in cls_instance.methods if \
-                                _method.method_name.ident ==\
-                                astnode.method_ident.ident][0]
-        if isinstance(method_instance.body_exp, str):
-            astnode.exp_type = method_instance.method_type.ident
-            return astnode.exp_type
-            #print astnode.exp_type
-        else:
-            astnode.exp_type = method_instance.method_type.ident
-            return astnode.exp_type
-
-        if method_instance.body_exp.exp_type == "SELF_TYPE":
-            astnode.exp_type = d_dispatch_exp_type
-            return d_dispatch_exp_type
-        else:
-            astnode.exp_type = method_instance.method_type.ident
-            return astnode.exp_type
-    elif isinstance(astnode, Static_Dispatch):
         for arg in astnode.args:
             tc(current_cls,arg,symbol_table)
-        s_dispatch_exp_type = tc(current_cls,astnode.exp, symbol_table)
+        method_tuple = [x for x in imp_map[d_dispatch_exp_type] if\
+                x[1]==astnode.method_ident.ident]
+        method_tuple = method_tuple[0]
         cls_instance = [_cls for _cls in ast+internal_ast if _cls.name_iden.ident == \
-                    astnode.type_ident.ident][0]
+                    method_tuple[0]]
+        cls_instance = cls_instance[0]
         method_instance = [_method for _method in cls_instance.methods if \
                                 _method.method_name.ident ==\
-                                astnode.method_ident.ident][0]
-
+                                method_tuple[1]][0]
         if isinstance(method_instance.body_exp, str):
             astnode.exp_type = method_instance.method_type.ident
             return astnode.exp_type
             #print astnode.exp_type
         else:
-            astnode.exp_type = method_instance.method_type.ident
-            return astnode.exp_type
+            if method_instance.body_exp.exp_type == "SELF_TYPE":
+                astnode.exp_type = d_dispatch_exp_type
+                return d_dispatch_exp_type
+            else:
+                astnode.exp_type = method_instance.method_type.ident
+                return astnode.exp_type
+    elif isinstance(astnode, Static_Dispatch):
+        print "Static_Dispatch"
+        s_dispatch_exp_type = tc(current_cls,astnode.exp, symbol_table)
 
-        if method_instance.body_exp.exp_type == "SELF_TYPE":
-            astnode.exp_type = s_dispatch_exp_type
-            return s_dispatch_exp_type
-        else:
+        for arg in astnode.args:
+            tc(current_cls,arg,symbol_table)
+        
+        method_tuple = [x for x in imp_map[s_dispatch_exp_type] if\
+                x[1]==astnode.method_ident.ident]
+        method_tuple = method_tuple[0]
+        cls_instance = [_cls for _cls in ast+internal_ast if _cls.name_iden.ident == \
+                    method_tuple[0]]
+        cls_instance = cls_instance[0]
+        method_instance = [_method for _method in cls_instance.methods if \
+                                _method.method_name.ident ==\
+                                method_tuple[1]][0] 
+
+        if isinstance(method_instance.body_exp, str):
             astnode.exp_type = method_instance.method_type.ident
             return astnode.exp_type
+            #print astnode.exp_type
+        else: 
+    
+            if method_instance.body_exp.exp_type == "SELF_TYPE":
+                astnode.exp_type = s_dispatch_exp_type
+                return s_dispatch_exp_type
+            else:
+                astnode.exp_type = method_instance.method_type.ident
+                return astnode.exp_type
 
     elif isinstance(astnode, Self_Dispatch):
+        print "Self_Dispatch"
         for arg in astnode.args:
             tc(current_cls,arg,symbol_table)
         method_tuple = [x for x in\
@@ -1704,8 +1700,27 @@ def tc(current_cls, astnode, symbol_table = {}):
         print astnode.exp_type + ": Self_Dispatch"
         return astnode.exp_type
 
-    #else:
-    #	raise Exception ("ERROR: Unkown Expression type!")
+    elif isinstance(astnode, Case):
+        t_new = []
+        t0 = tc(current_cls,astnode.exp,symbol_table)
+        for case_element in astnode.element_list:
+            if case_element.var_ident.ident in symbol_table:
+                symbol_table[case_element.var_ident.ident].append((case_element.var_ident.ident,case_element.type_ident.ident))
+            else:
+                symbol_table[case_element.var_ident.ident]=[(case_element.var_ident.ident,case_element.type_ident.ident)]
+            case_element_body_type = tc(current_cls,case_element.body_exp,symbol_table)
+            t_new.append(case_element_body_type)
+            symbol_table[case_element.var_ident.ident].pop()
+
+        while(len(t_new)>1):
+            temp = find_common_ancestor(t_new.pop(),t_new.pop())
+            t_new.append(temp)
+        
+        astnode.exp_type = t_new[0]
+        return astnode.exp_type
+            
+    else:
+    	raise Exception ("ERROR: Unkown Expression type!")
 
 def produce_class_map(cls,ast):
     global class_map
@@ -1717,8 +1732,9 @@ def produce_class_map(cls,ast):
         parent_cls = filter(lambda x : x.name_iden.ident == cls.inherits_iden.ident,
                         class_list)[0]
         # recursive call
-        class_map[cls.name_iden.ident] = produce_class_map(parent_cls, ast)
-        class_map[cls.name_iden.ident] = class_map[cls.name_iden.ident] + \
+        produce_class_map(parent_cls, ast)
+        class_map[cls.name_iden.ident] = \
+        class_map[parent_map[cls.name_iden.ident]] + \
                                         cls.attributes
         return list(class_map[cls.name_iden.ident])
 
@@ -1779,6 +1795,30 @@ def produce_imp_map(cls, ast):
                 imp_map[cls.name_iden.ident].append((cls.name_iden.ident, \
                     method.method_name.ident))
         return list(imp_map[cls.name_iden.ident])
+
+def find_common_ancestor(type1,type2):
+            global parent_map
+            temp = type1
+            node_topo = []
+            if temp != "SELF_TYPE" :
+                while(parent_map.get(temp)!=None):
+                    node_topo.append(temp)
+                    temp = parent_map[temp]
+            else:
+                node_topo.append("SELF_TYPE")
+                node_topo.append("Object")
+       
+            temp = type2
+            if temp != "SELF_TYPE" :
+                while(parent_map.get(temp)!=None):
+                    if temp in node_topo:
+                        return temp
+                    temp = parent_map[temp]
+            else:
+                if temp in node_topo:
+                    return temp
+            # if not found
+            return "Object"
 
 def produce_parent_map(ast):
     global parent_map
@@ -1945,7 +1985,7 @@ def main():
         exit()
 
     with open(sys.argv[1]) as f:
-        ast_lines = [l.rstrip() for l in f.readlines()]
+        ast_lines = [l[:-1] for l in f.readlines()]
     internal_ast = produce_internal_ast()
     ast = read_ast()
 
@@ -2012,8 +2052,9 @@ def main():
         visit(cls)
 
     ### 
+    for cls in ast+internal_ast:
+        produce_class_map(cls, ast+internal_ast)
     for cls in modified_ast:
-        produce_class_map(cls, modified_ast)
         produce_imp_map(cls, modified_ast)
 
     try:
