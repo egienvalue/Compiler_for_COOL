@@ -1411,14 +1411,13 @@ def tc(current_cls, astnode, symbol_table = {}):
         # check every attibute
         if astnode.attributes != [] :
             for attribute in class_map[astnode.name_iden.ident]:
-                tc(current_cls,attribute,symbol_table)
-                if attribute.attr_name.ident in symbol_table:
+                if attribute.attr_name.ident in symbol_table.keys():
                     symbol_table[attribute.attr_name.ident].append((attribute.attr_name.ident,attribute.attr_type.ident))
                 else:
                     symbol_table[attribute.attr_name.ident]=[(attribute.attr_name.ident,attribute.attr_type.ident)] 
-
-        #for attribute in astnode.attributes:
-        #    tc(current_cls,attribute,symbol_table)
+                #tc(current_cls,attribute,symbol_table)
+        for attribute in astnode.attributes:
+            tc(current_cls,attribute,symbol_table)
         #for attribute in class_map[astnode.name_iden.ident]:
         #    if attribute.attr_name.ident in symbol_table:
         #        symbol_table[attribute.attr_name.ident].append((attribute.attr_name.ident,attribute.attr_type.ident))
@@ -1428,7 +1427,8 @@ def tc(current_cls, astnode, symbol_table = {}):
         if astnode.methods != [] :
             for method in astnode.methods:
                 tc(current_cls,method,symbol_table)
-
+        #for attribute in class_map[astnode.name_iden.ident]:
+        #    symbol_table[attribute.attr_name.ident].pop()
     elif isinstance(astnode, Method):
         if astnode.method_type.ident not in class_map.keys()+["SELF_TYPE"]:
             raise Exception("ERROR: "+astnode.method_name.line_num+\
@@ -1438,7 +1438,7 @@ def tc(current_cls, astnode, symbol_table = {}):
         ## check duplicate formal
         check_list = []
         for formal in astnode.formals:
-            if formal.formal_type.ident not in class_map.keys():
+            if formal.formal_type.ident not in parent_map.keys():
                 raise Exception("ERROR: "+formal.formal_type.line_num+\
                         ": Type-Check: class has method "+ \
                         astnode.method_name.ident+ \
@@ -1457,7 +1457,7 @@ def tc(current_cls, astnode, symbol_table = {}):
                 check_list.append(formal.formal_name.ident)
 
         for formal in astnode.formals:
-            if formal.formal_name.ident in symbol_table:
+            if formal.formal_name.ident in symbol_table.keys():
 	        symbol_table[formal.formal_name.ident].append \
                         ((formal.formal_name.ident, formal.formal_type.ident))
             else:
@@ -1477,11 +1477,21 @@ def tc(current_cls, astnode, symbol_table = {}):
 
 
     elif isinstance(astnode, Attribute):
-        
+        if astnode.attr_type.ident not in parent_map.keys()+["Object", "SELF_TYPE"]:
+            raise Exception("ERROR: "+astnode.attr_type.line_num+\
+                    ": Type-Check: class "+current_cls.name_iden.ident+\
+                    " has attribute "+astnode.attr_name.ident+
+                    " with unknown type "+astnode.attr_type.ident)
         if astnode.attr_name.ident == "self":
             raise Exception("ERROR: "+astnode.attr_name.line_num + \
             ": Type-Check: class has an attribute named self")
         if astnode.initialization :
+            #if astnode.attr_name.ident in symbol_table:
+	    #    symbol_table[astnode.attr_name.ident].append \
+            #            ((astnode.attr_name.ident, astnode.attr_type.ident))
+            #else:
+	    #    symbol_table[astnode.attr_name.ident] = \
+            #            [(astnode.attr_name.ident, astnode.attr_type.ident)]
             t1 = tc(current_cls,astnode.exp, symbol_table)
             if t1 == "SELF_TYPE" and astnode.attr_type.ident != "SELF_TYPE":
                 t1 = current_cls.name_iden.ident
@@ -1498,10 +1508,13 @@ def tc(current_cls, astnode, symbol_table = {}):
        #         binding_type = tc(current_cls,astnode.binding_list[i].value_exp,symbol_table)
                 #TODO
         for binding in astnode.binding_list:
+            if binding.type_ident.ident not in parent_map.keys()+["Object", "SELF_TYPE"]:
+                raise Exception("ERROR: "+binding.type_ident.line_num+\
+                        ": Type-Check: unknown type "+binding.type_ident.ident) 
             if binding.var_ident.ident == "self":
                 raise Exception("ERROR: "+binding.var_ident.line_num+\
                         ": Type-Check: binding self in a let is not allowed")
-            if binding.var_ident.ident in symbol_table:
+            if binding.var_ident.ident in symbol_table.keys():
                 symbol_table[binding.var_ident.ident].append((binding.var_ident.ident,binding.type_ident.ident))
             else:
                 symbol_table[binding.var_ident.ident]=[(binding.var_ident.ident,binding.type_ident.ident)] 
@@ -1550,7 +1563,8 @@ def tc(current_cls, astnode, symbol_table = {}):
 	    astnode.exp_type = "Int"
 	    return "Int"
 	else:
-	    raise Exception ("ERROR: "+astnode.line_num+" Adding \n")
+	    raise Exception ("ERROR: "+astnode.line_num+\
+                    ": Type-Check: arithmetic error")
 
     elif isinstance(astnode, (Le, Eq, Lt)):
 
@@ -1586,7 +1600,9 @@ def tc(current_cls, astnode, symbol_table = {}):
         return astnode.exp_type
 
     elif isinstance(astnode, New):
-
+        if astnode.ident.ident not in class_map.keys()+["Object", "SELF_TYPE"]:
+                raise Exception("ERROR: "+astnode.ident.line_num+\
+                        ": Type-Check: unknown type "+astnode.ident.ident)
         if astnode.ident.ident == "SELF_TYPE":
             astnode.exp_type = "SELF_TYPE"
         else :
@@ -1826,7 +1842,7 @@ def tc(current_cls, astnode, symbol_table = {}):
                             target_case_element.type_ident.ident+\
                             " is bound twice")
         for case_element in astnode.element_list:
-            if case_element.var_ident.ident in symbol_table:
+            if case_element.var_ident.ident in symbol_table.keys():
                 symbol_table[case_element.var_ident.ident].append((case_element.var_ident.ident,case_element.type_ident.ident))
             else:
                 symbol_table[case_element.var_ident.ident]=[(case_element.var_ident.ident,case_element.type_ident.ident)]
