@@ -1373,7 +1373,7 @@ def tc(current_cls, astnode, symbol_table = {}):
     if isinstance(astnode, Class):
         # check redefined Object
         if astnode.name_iden.ident in ["Object","Int","String","Bool","SELF_TYPE", "IO"]:
-            raise Exception("ERROR: 0"+": Type-Check: class "+astnode.name_iden.ident+" redefined")
+            raise Exception("ERROR: "+astnode.name_iden.line_num+": Type-Check: class "+astnode.name_iden.ident+" redefined")
 
         # check main method exist
         if astnode.name_iden.ident == "Main":
@@ -1466,7 +1466,14 @@ def tc(current_cls, astnode, symbol_table = {}):
                         [(formal.formal_name.ident, formal.formal_type.ident)]
         
         method_body_type = tc(current_cls,astnode.body_exp,symbol_table)
-
+        if method_body_type == "SELF_TYPE" and astnode.method_type.ident !=\
+        "SELF_TYPE":
+            method_body_type = current_cls.name_iden.ident
+        if astnode.method_type.ident != \
+                find_common_ancestor(method_body_type,astnode.method_type.ident):
+            raise Exception("ERROR: "+astnode.method_type.line_num+\
+                    ": Type-Check: "+method_body_type+" does not conform to "+\
+                    astnode.method_type.ident+" in "+ astnode.method_name.ident)
         
 
 
@@ -1479,11 +1486,11 @@ def tc(current_cls, astnode, symbol_table = {}):
             t1 = tc(current_cls,astnode.exp, symbol_table)
             if t1 == "SELF_TYPE":
                 t1 = current_cls.name_iden.ident
-            if astnode.attr_type.ident != find_common_ancestor(t1,astnode.attr_type.ident):
-                raise Exception("ERROR: "+astnode.exp.line_num+\
-                        ": Type-Check: "+t1+\
-                        " does not conform to "+astnode.attr_type.ident+\
-                        " in initialized attribute")
+                if astnode.attr_type.ident != find_common_ancestor(t1,astnode.attr_type.ident):
+                    raise Exception("ERROR: "+astnode.exp.line_num+\
+                            ": Type-Check: "+t1+\
+                            " does not conform to "+astnode.attr_type.ident+\
+                            " in initialized attribute")
         
     elif isinstance(astnode, Let):
 
@@ -1492,6 +1499,9 @@ def tc(current_cls, astnode, symbol_table = {}):
                 binding_type = tc(current_cls,astnode.binding_list[i].value_exp,symbol_table)
                 #TODO
         for binding in astnode.binding_list:
+            if binding.var_ident.ident == "self":
+                raise Exception("ERROR: "+binding.var_ident.line_num+\
+                        ": Type-Check: binding self in a let is not allowed")
             if binding.var_ident.ident in symbol_table:
                 symbol_table[binding.var_ident.ident].append((binding.var_ident.ident,binding.type_ident.ident))
             else:
@@ -1775,6 +1785,18 @@ def tc(current_cls, astnode, symbol_table = {}):
     elif isinstance(astnode, Case):
         t_new = []
         t0 = tc(current_cls,astnode.exp,symbol_table)
+        for i,case_element in enumerate(astnode.element_list):
+            if case_element.type_ident.ident == "SELF_TYPE":
+                raise Exception("ERROR: "+case_element.type_ident.line_num+\
+                ": Type-Check: using SELF_TYPE as a case branch type is not allowed")
+            for j, target_case_element in enumerate(astnode.element_list):
+                if j!=i and target_case_element.type_ident.ident == \
+                case_element.type_ident.ident:
+                    raise Exception("ERROR: "+\
+                            target_case_element.type_ident.line_num+\
+                            ": Type-Check: case branch type "+ \
+                            target_case_element.type_ident.ident+\
+                            " is bound twice")
         for case_element in astnode.element_list:
             if case_element.var_ident.ident in symbol_table:
                 symbol_table[case_element.var_ident.ident].append((case_element.var_ident.ident,case_element.type_ident.ident))
@@ -2072,6 +2094,9 @@ def main():
 
     ### check if class is defined more than once
     for i, cls in enumerate(ast):
+        if cls.name_iden.ident in ["Object"]:
+            print "ERROR: "+cls.name_iden.line_num+": Type-Check: class Object redefined"
+            exit()
         for j, target_cls in enumerate(ast):
             if i!=j and cls.name_iden.ident == target_cls.name_iden.ident:
                 print "ERROR: " + target_cls.name_iden.line_num + ":"\
