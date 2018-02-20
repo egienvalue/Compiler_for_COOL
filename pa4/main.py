@@ -1430,7 +1430,6 @@ def tc(current_cls, astnode, symbol_table = {}):
                 tc(current_cls,method,symbol_table)
 
     elif isinstance(astnode, Method):
-
         if astnode.method_type.ident not in class_map.keys()+["SELF_TYPE"]:
             raise Exception("ERROR: "+astnode.method_name.line_num+\
                     ": Type-Check: class has method "+\
@@ -1884,6 +1883,33 @@ def produce_imp_map(cls, ast):
                 i = parent_method_name_list.index(method.method_name.ident)
                 imp_map[cls.name_iden.ident][i]=(cls.name_iden.ident,
                         method.method_name.ident)
+                parent_method = filter(lambda x : x.method_name.ident ==
+                        method.method_name.ident,
+                        parent_cls.methods)[0]
+                ## check formals
+                if len(parent_method.formals) != len(method.formals):
+                    print "ERROR: "+method.method_name.line_num+\
+                        ": Type-Check: class "+cls.name_iden.ident+\
+                        " redefines method "+method.method_name.ident+\
+                        " and changes number of formals"
+                    exit()
+                if [formal.formal_type.ident for formal in method.formals] != \
+                        [formal.formal_type.ident for formal in
+                                parent_method.formals]:
+                    print "ERROR: "+method.method_name.line_num+\
+                        ": Type-Check: class "+cls.name_iden.ident+\
+                        " redefines method "+method.method_name.ident+\
+                        " and changes type of formals"
+                    exit()
+                if parent_method.method_type.ident != method.method_type.ident:
+                    print "ERROR: "+method.method_name.line_num+\
+                        ": Type-Check: class "+cls.name_iden.ident+\
+                        " redefines method "+method.method_name.ident+\
+                        " and changes return type"
+                    exit()
+                
+
+
             else:
                 imp_map[cls.name_iden.ident].append((cls.name_iden.ident, \
                     method.method_name.ident))
