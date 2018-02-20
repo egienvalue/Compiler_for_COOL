@@ -1482,15 +1482,15 @@ def tc(current_cls, astnode, symbol_table = {}):
         if astnode.attr_name.ident == "self":
             raise Exception("ERROR: "+astnode.attr_name.line_num + \
             ": Type-Check: class has an attribute named self")
-        if astnode.exp != None :
+        if astnode.initialization :
             t1 = tc(current_cls,astnode.exp, symbol_table)
-            if t1 == "SELF_TYPE":
+            if t1 == "SELF_TYPE" and astnode.attr_type.ident != "SELF_TYPE":
                 t1 = current_cls.name_iden.ident
-                if astnode.attr_type.ident != find_common_ancestor(t1,astnode.attr_type.ident):
-                    raise Exception("ERROR: "+astnode.exp.line_num+\
-                            ": Type-Check: "+t1+\
-                            " does not conform to "+astnode.attr_type.ident+\
-                            " in initialized attribute")
+            if astnode.attr_type.ident != find_common_ancestor(t1,astnode.attr_type.ident):
+                raise Exception("ERROR: "+astnode.exp.line_num+\
+                        ": Type-Check: "+t1+\
+                        " does not conform to "+astnode.attr_type.ident+\
+                        " in initialized attribute")
         
     elif isinstance(astnode, Let):
 
@@ -1537,7 +1537,7 @@ def tc(current_cls, astnode, symbol_table = {}):
             return "SELF_TYPE"
 
 	if astnode.ident not in symbol_table:
-	    raise Exception ("ERROR: "+astnode.line_num+"Unbound identifier " + astnode.ident + "\n")
+            raise Exception ("ERROR: "+astnode.line_num+": Unbound identifier " + astnode.ident + "\n")
 	else:
             #astnode.exp_type = symbol_table[astnode.ident][-1][1]
 	    return symbol_table[astnode.ident][-1][1]
@@ -1556,8 +1556,9 @@ def tc(current_cls, astnode, symbol_table = {}):
 
         t1 = tc(current_cls,astnode.lhs, symbol_table)
         t2 = tc(current_cls,astnode.rhs, symbol_table)
-        if t1 in ["Bool","Int","String"] and (t1 != t2):
-            raise Exception ("ERROR: "+astnode.line_num+" cannot compare "+t1 + "with" + t2 + "\n")
+        if (t1 in ["Bool","Int","String"] or t2 in ["Bool","Int","String"]) and (t1 != t2):
+            raise Exception ("ERROR: "+astnode.line_num+\
+                    ": Type-Check: comparison between "+t1+" and "+t2)
         astnode.exp_type = "Bool"
         return "Bool"         
 
@@ -1672,6 +1673,14 @@ def tc(current_cls, astnode, symbol_table = {}):
                 temp = current_cls.name_iden.ident
             t.append(temp)
 
+        # check existence of method
+        if astnode.method_ident.ident not in [x[1] for x in
+                imp_map[d_dispatch_exp_type_new]]:
+            raise Exception("ERROR: "+astnode.line_num+\
+                    ": Type-Check: unknown method "+astnode.method_ident.ident+\
+                    " in dispatch on "+\
+                    d_dispatch_exp_type)
+
         method_tuple = [x for x in imp_map[d_dispatch_exp_type_new] if\
                 x[1]==astnode.method_ident.ident]
         method_tuple = method_tuple[0]
@@ -1682,7 +1691,8 @@ def tc(current_cls, astnode, symbol_table = {}):
                                 _method.method_name.ident ==\
                                 method_tuple[1]][0]
         t_prime = [formal.formal_type.ident for formal in method_instance.formals]
-
+        if len(t_prime)!= len(t):
+            raise Exception("ERROR: "+astnode.line_num)
         for i in range(len(t)):
             if t_prime[i] != find_common_ancestor(t_prime[i],t[i]):
                 raise Exception("ERROR: "+astnode.line_num+\
@@ -1702,6 +1712,7 @@ def tc(current_cls, astnode, symbol_table = {}):
                 astnode.exp_type = method_instance.method_type.ident
                 return astnode.exp_type
     elif isinstance(astnode, Static_Dispatch):
+        # check the existence of method
         s_dispatch_exp_type = tc(current_cls,astnode.exp, symbol_table)
         if s_dispatch_exp_type == "SELF_TYPE":
             s_dispatch_exp_type_new = current_cls.name_iden.ident
@@ -1714,6 +1725,13 @@ def tc(current_cls, astnode, symbol_table = {}):
                 temp = current_cls.name_iden.ident
             t.append(temp)
         
+        if astnode.method_ident.ident not in [x[1] for x in
+                imp_map[s_dispatch_exp_type_new]]:
+            raise Exception("ERROR: "+astnode.line_num+\
+                    ": Type-Check: unknown method "+astnode.method_ident.ident+\
+                    " in dispatch on"+\
+                    s_dispatch_exp_type)
+
         method_tuple = [x for x in imp_map[s_dispatch_exp_type_new] if\
                 x[1]==astnode.method_ident.ident]
         method_tuple = method_tuple[0]
@@ -1772,6 +1790,8 @@ def tc(current_cls, astnode, symbol_table = {}):
 
         t_prime = [formal.formal_type.ident for formal in \
                  method_instance.formals]
+        if len(t_prime)!= len(t):
+            raise Exception("ERROR: "+astnode.line_num)
         for i in range(len(t)):
             if t_prime[i] != find_common_ancestor(t_prime[i],t[i]):
                 raise Exception("ERROR: "+astnode.line_num+\
