@@ -1493,9 +1493,9 @@ def tc(current_cls, astnode, symbol_table = {}):
         
     elif isinstance(astnode, Let):
 
-        for i in range(len(astnode.binding_list)):
-            if astnode.binding_list[i].initialization:
-                binding_type = tc(current_cls,astnode.binding_list[i].value_exp,symbol_table)
+       # for i in range(len(astnode.binding_list)):
+       #     if astnode.binding_list[i].initialization:
+       #         binding_type = tc(current_cls,astnode.binding_list[i].value_exp,symbol_table)
                 #TODO
         for binding in astnode.binding_list:
             if binding.var_ident.ident == "self":
@@ -1504,7 +1504,7 @@ def tc(current_cls, astnode, symbol_table = {}):
             if binding.var_ident.ident in symbol_table:
                 symbol_table[binding.var_ident.ident].append((binding.var_ident.ident,binding.type_ident.ident))
             else:
-                symbol_table[binding.var_ident.ident]=[(binding.var_ident.ident,binding.type_ident.ident)]
+                symbol_table[binding.var_ident.ident]=[(binding.var_ident.ident,binding.type_ident.ident)] 
             if binding.initialization:
                 binding_type = \
                 tc(current_cls,binding.value_exp,symbol_table)
@@ -1535,8 +1535,9 @@ def tc(current_cls, astnode, symbol_table = {}):
             #astnode.exp_type = "SELF_TYPE"
             return "SELF_TYPE"
 
-	if astnode.ident not in symbol_table:
-            raise Exception ("ERROR: "+astnode.line_num+": Unbound identifier " + astnode.ident + "\n")
+	if symbol_table.get(astnode.ident) == None:
+            raise Exception ("ERROR: "+astnode.line_num+\
+                    ": Type-Check: unbound identifier "+astnode.ident)
 	else:
             #astnode.exp_type = symbol_table[astnode.ident][-1][1]
 	    return symbol_table[astnode.ident][-1][1]
@@ -1698,14 +1699,18 @@ def tc(current_cls, astnode, symbol_table = {}):
                         ": Type-Check: argument #"+str(i+1)+" type "+t[i]+\
                         " does not conform to formal type "+t_prime[i])
         if isinstance(method_instance.body_exp, str):
-            astnode.exp_type = method_instance.method_type.ident
-            return astnode.exp_type
+            if method_instance.method_type.ident == "SELF_TYPE":
+                astnode.exp_type = d_dispatch_exp_type
+                return astnode.exp_type
+            else:
+                astnode.exp_type = method_instance.method_type.ident
+                return astnode.exp_type
             #print astnode.exp_type
         else:
             #if method_instance.body_exp.exp_type == "No_TYPE":
             #    tc(cls_instance,cls_instance)
             if method_instance.method_type.ident == "SELF_TYPE":
-                astnode.exp_type = d_dispatch_exp_type_new
+                astnode.exp_type = d_dispatch_exp_type
                 return astnode.exp_type
             else:
                 astnode.exp_type = method_instance.method_type.ident
@@ -1758,14 +1763,18 @@ def tc(current_cls, astnode, symbol_table = {}):
                     astnode.type_ident.ident+" in static dispatch") 
 
         if isinstance(method_instance.body_exp, str):
-            astnode.exp_type = method_instance.method_type.ident
-            return astnode.exp_type
+            if method_instance.method_type.ident == "SELF_TYPE":
+                astnode.exp_type = s_dispatch_exp_type
+                return astnode.exp_type
+            else:
+                astnode.exp_type = method_instance.method_type.ident
+                return astnode.exp_type
             #print astnode.exp_type
         else:
             #if method_instance.body_exp.exp_type == "No_TYPE":
             #    tc(cls_instance,cls_instance)
             if method_instance.method_type.ident == "SELF_TYPE":
-                astnode.exp_type = s_dispatch_exp_type_new
+                astnode.exp_type = s_dispatch_exp_type
                 return astnode.exp_type
             else:
                 astnode.exp_type = method_instance.method_type.ident
@@ -1881,11 +1890,14 @@ def produce_imp_map(cls, ast):
         for method in cls.methods:
             if method.method_name.ident in parent_method_name_list :
                 i = parent_method_name_list.index(method.method_name.ident)
+                parent_method_tuple = imp_map[cls.name_iden.ident][i]
                 imp_map[cls.name_iden.ident][i]=(cls.name_iden.ident,
                         method.method_name.ident)
-                parent_method = filter(lambda x : x.method_name.ident ==
-                        method.method_name.ident,
-                        parent_cls.methods)[0]
+                cls_instance = [_cls for _cls in ast if _cls.name_iden.ident == \
+                    parent_method_tuple[0]][0]
+                method_instance = [_method for _method in cls_instance.methods if \
+                                _method.method_name.ident == parent_method_tuple[1]][0]
+                parent_method = method_instance 
                 ## check formals
                 if len(parent_method.formals) != len(method.formals):
                     print "ERROR: "+method.method_name.line_num+\
