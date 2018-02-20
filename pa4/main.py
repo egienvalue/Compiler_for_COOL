@@ -1373,7 +1373,7 @@ def tc(current_cls, astnode, symbol_table = {}):
     if isinstance(astnode, Class):
         # check redefined Object
         if astnode.name_iden.ident in ["Object","Int","String","Bool","SELF_TYPE", "IO"]:
-            raise Exception("ERROR: "+astnode.name_iden.line_num+": Type-Check: class "+astnode.name_iden.ident+" redefined")
+            raise Exception("ERROR: 0"+": Type-Check: class "+astnode.name_iden.ident+" redefined")
 
         # check main method exist
         if astnode.name_iden.ident == "Main":
@@ -1496,6 +1496,15 @@ def tc(current_cls, astnode, symbol_table = {}):
                 symbol_table[binding.var_ident.ident].append((binding.var_ident.ident,binding.type_ident.ident))
             else:
                 symbol_table[binding.var_ident.ident]=[(binding.var_ident.ident,binding.type_ident.ident)]
+            if binding.initialization:
+                binding_type = \
+                tc(current_cls,binding.value_exp,symbol_table)
+                #TODO self check
+                if binding.type_ident.ident != \
+                        find_common_ancestor(binding.type_ident.ident,
+                                binding_type):
+                            raise Exception("ERROR: "+
+                                    binding.var_ident.line_num + ": Let")
 
 	t1 = tc(current_cls, astnode.exp, symbol_table )
         for binding in astnode.binding_list:	
@@ -1517,8 +1526,8 @@ def tc(current_cls, astnode, symbol_table = {}):
             #astnode.exp_type = "SELF_TYPE"
             return "SELF_TYPE"
 
-	if not astnode.ident in symbol_table:
-	    raise Exception ("ERROR: Unbound identifier " + astnode.ident + "\n")
+	if astnode.ident not in symbol_table:
+	    raise Exception ("ERROR: "+astnode.line_num+"Unbound identifier " + astnode.ident + "\n")
 	else:
             #astnode.exp_type = symbol_table[astnode.ident][-1][1]
 	    return symbol_table[astnode.ident][-1][1]
@@ -1531,14 +1540,14 @@ def tc(current_cls, astnode, symbol_table = {}):
 	    astnode.exp_type = "Int"
 	    return "Int"
 	else:
-	    raise Exception ("ERROR: Adding \n")
+	    raise Exception ("ERROR: "+astnode.line_num+" Adding \n")
 
     elif isinstance(astnode, (Le, Eq, Lt)):
 
         t1 = tc(current_cls,astnode.lhs, symbol_table)
         t2 = tc(current_cls,astnode.rhs, symbol_table)
         if t1 in ["Bool","Int","String"] and (t1 != t2):
-            raise Exception ("ERROR: cannot compare "+t1 + "with" + t2 + "\n")
+            raise Exception ("ERROR: "+astnode.line_num+" cannot compare "+t1 + "with" + t2 + "\n")
         astnode.exp_type = "Bool"
         return "Bool"         
 
@@ -1554,6 +1563,8 @@ def tc(current_cls, astnode, symbol_table = {}):
 
         assign_ident_type = tc(current_cls,astnode.ident, symbol_table)
         assign_exp_type = tc(current_cls,astnode.exp, symbol_table)
+        if astnode.ident.ident == "self":
+            raise Exception("ERROR: "+astnode.line_num+": Type-Check: cannot assign to self")
         if assign_ident_type != find_common_ancestor(assign_ident_type,
                 assign_exp_type): 
             raise Exception("ERROR: "+astnode.line_num+\
@@ -1577,6 +1588,9 @@ def tc(current_cls, astnode, symbol_table = {}):
         predicate_type = tc(current_cls, astnode.predicate, symbol_table)
         then_body_type = tc(current_cls,astnode.then_body, symbol_table)
         else_body_type = tc(current_cls,astnode.else_body, symbol_table)
+        if predicate_type != "Bool":
+            raise Exception("ERROR: "+astnode.line_num+\
+                    ": Type-Check: conditional has type "+predicate_type+" instead of Bool")
         if then_body_type == "SELF_TYPE" and else_body_type == "SELF_TYPE":
             astnode.exp_type = "SELF_TYPE"
             return astnode.exp_type
@@ -1598,8 +1612,12 @@ def tc(current_cls, astnode, symbol_table = {}):
 
     elif isinstance(astnode, While):
 
-        tc(current_cls,astnode.predicate, symbol_table)
-        tc(current_cls,astnode.body, symbol_table)
+        predicate_type = tc(current_cls,astnode.predicate, symbol_table)
+        body_type = tc(current_cls,astnode.body, symbol_table)
+        if predicate_type != "Bool":
+            raise Exception("ERROR: "+astnode.line_num+ \
+                    ": Type-Check: conditional has type "+predicate_type+ \
+                    "instead of Bool")
         astnode.exp_type = "Object"
         return "Object"
         
@@ -1615,12 +1633,20 @@ def tc(current_cls, astnode, symbol_table = {}):
 
     elif isinstance(astnode, Not):
 
-        tc(current_cls,astnode.exp, symbol_table)
+        exp_type = tc(current_cls,astnode.exp, symbol_table)
+        if exp_type != "Bool":
+            raise Exception("ERROR: "+astnode.line_num+ \
+                    ": Type-Check: Not has type "+exp_type+ \
+                    "instead of Bool")
         astnode.exp_type = "Bool"
         return "Bool"
     elif isinstance(astnode, Negate):
 
-        tc(current_cls,astnode.exp, symbol_table)
+        exp_type = tc(current_cls,astnode.exp, symbol_table)
+        if exp_type != "Int":
+            raise Exception("ERROR: "+astnode.line_num+ \
+                    ": Type-Check: Negate has type "+exp_type+ \
+                    "instead of Int")
         astnode.exp_type = "Int"
         return "Int"
     elif isinstance(astnode, Dynamic_Dispatch):
@@ -1649,7 +1675,7 @@ def tc(current_cls, astnode, symbol_table = {}):
 
         for i in range(len(t)):
             if t_prime[i] != find_common_ancestor(t_prime[i],t[i]):
-                raise Exception("ERROR: "+astnode.args[i].line_num+\
+                raise Exception("ERROR: "+astnode.line_num+\
                         ": Type-Check: argument #"+str(i+1)+" type "+t[i]+\
                         " does not conform to formal type "+t_prime[i])
         if isinstance(method_instance.body_exp, str):
@@ -1689,9 +1715,12 @@ def tc(current_cls, astnode, symbol_table = {}):
                                 method_tuple[1]][0] 
         t_prime = [formal.formal_type.ident for formal in \
                  method_instance.formals]
+        if len(t_prime)!= len(t):
+            raise Exception("ERROR: "+astnode.line_num) 
+            
         for i in range(len(t)):
             if t_prime[i] != find_common_ancestor(t_prime[i],t[i]):
-                raise Exception("ERROR: "+astnode.args[i].line_num+\
+                raise Exception("ERROR: "+astnode.line_num+\
                         ": Type-Check: argument #"+str(i+1)+" type "+t[i]+\
                         " does not conform to formal type "+t_prime[i])
         if astnode.type_ident.ident != \
@@ -1735,7 +1764,7 @@ def tc(current_cls, astnode, symbol_table = {}):
                  method_instance.formals]
         for i in range(len(t)):
             if t_prime[i] != find_common_ancestor(t_prime[i],t[i]):
-                raise Exception("ERROR: "+astnode.args[i].line_num+\
+                raise Exception("ERROR: "+astnode.line_num+\
                         ": Type-Check: argument #"+str(i+1)+" type "+t[i]+\
                         " does not conform to formal type "+t_prime[i])
 
