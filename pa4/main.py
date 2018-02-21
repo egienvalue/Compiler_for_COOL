@@ -1371,6 +1371,7 @@ def tc(current_cls, astnode, symbol_table = {}):
     global modified_ast
     global internal_ast
     if isinstance(astnode, Class):
+        symbol_table = {}
         # check redefined Object
         if astnode.name_iden.ident in ["Object","Int","String","Bool","SELF_TYPE", "IO"]:
             raise Exception("ERROR: "+astnode.name_iden.line_num+": Type-Check: class "+astnode.name_iden.ident+" redefined")
@@ -1424,11 +1425,9 @@ def tc(current_cls, astnode, symbol_table = {}):
         #    else:
         #        symbol_table[attribute.attr_name.ident]=[(attribute.attr_name.ident,attribute.attr_type.ident)] 
 
-        if astnode.methods != [] :
-            for method in astnode.methods:
-                tc(current_cls,method,symbol_table)
-        #for attribute in class_map[astnode.name_iden.ident]:
-        #    symbol_table[attribute.attr_name.ident].pop()
+        for method in astnode.methods:
+            tc(current_cls,method,symbol_table)
+
     elif isinstance(astnode, Method):
         if astnode.method_type.ident not in class_map.keys()+["SELF_TYPE"]:
             raise Exception("ERROR: "+astnode.method_name.line_num+\
@@ -1438,7 +1437,7 @@ def tc(current_cls, astnode, symbol_table = {}):
         ## check duplicate formal
         check_list = []
         for formal in astnode.formals:
-            if formal.formal_type.ident not in parent_map.keys():
+            if formal.formal_type.ident not in class_map.keys() :
                 raise Exception("ERROR: "+formal.formal_type.line_num+\
                         ": Type-Check: class has method "+ \
                         astnode.method_name.ident+ \
@@ -1474,10 +1473,14 @@ def tc(current_cls, astnode, symbol_table = {}):
                     ": Type-Check: "+method_body_type+" does not conform to "+\
                     astnode.method_type.ident+" in "+ astnode.method_name.ident)
         
+        for formal in astnode.formals:
+            symbol_table[formal.formal_name.ident].pop()
+            if symbol_table[formal.formal_name.ident] == []:
+                symbol_table.pop(formal.formal_name.ident)
 
 
     elif isinstance(astnode, Attribute):
-        if astnode.attr_type.ident not in parent_map.keys()+["Object", "SELF_TYPE"]:
+        if astnode.attr_type.ident not in class_map.keys()+["SELF_TYPE"]:
             raise Exception("ERROR: "+astnode.attr_type.line_num+\
                     ": Type-Check: class "+current_cls.name_iden.ident+\
                     " has attribute "+astnode.attr_name.ident+
@@ -1508,7 +1511,7 @@ def tc(current_cls, astnode, symbol_table = {}):
        #         binding_type = tc(current_cls,astnode.binding_list[i].value_exp,symbol_table)
                 #TODO
         for binding in astnode.binding_list:
-            if binding.type_ident.ident not in parent_map.keys()+["Object", "SELF_TYPE"]:
+            if binding.type_ident.ident not in class_map.keys()+["SELF_TYPE"]:
                 raise Exception("ERROR: "+binding.type_ident.line_num+\
                         ": Type-Check: unknown type "+binding.type_ident.ident) 
             if binding.var_ident.ident == "self":
@@ -1531,6 +1534,8 @@ def tc(current_cls, astnode, symbol_table = {}):
 	t1 = tc(current_cls, astnode.exp, symbol_table )
         for binding in astnode.binding_list:	
 	    symbol_table[binding.var_ident.ident].pop()
+            if symbol_table[binding.var_ident.ident] == []:
+                symbol_table.pop(binding.var_ident.ident)
 
 	astnode.exp_type = t1
 	return t1
@@ -1849,6 +1854,8 @@ def tc(current_cls, astnode, symbol_table = {}):
             case_element_body_type = tc(current_cls,case_element.body_exp,symbol_table)
             t_new.append(case_element_body_type)
             symbol_table[case_element.var_ident.ident].pop()
+            if symbol_table[case_element.var_ident.ident] == []:
+                symbol_table.pop(case_element.var_ident.ident)
 
         while(len(t_new)>1):
             temp = find_common_ancestor(t_new.pop(),t_new.pop())
@@ -2228,7 +2235,6 @@ def main():
         produce_class_map(cls, ast+internal_ast)
     for cls in modified_ast:
         produce_imp_map(cls, modified_ast)
-
     try:
         for cls in ast:
             tc(cls,cls)
@@ -2237,6 +2243,7 @@ def main():
         #fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         #print(exc_type, fname, exc_tb.tb_lineno)
         #print(traceback.format_exc())
+        #fout.write(e.message)
 	print e.message
         exit()
     ### successful type checking, print AAST
