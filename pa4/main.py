@@ -1371,8 +1371,10 @@ def tc(current_cls, astnode, symbol_table = {}):
     global modified_ast
     global internal_ast
     if isinstance(astnode, Class):
-# check redefined Object
+        # creat new symbol table for class
         symbol_table = {}
+
+        # check redefined Object
         if astnode.name_iden.ident in ["Object","Int","String","Bool","SELF_TYPE", "IO"]:
             raise Exception("ERROR: "+astnode.name_iden.line_num+": Type-Check: class "+astnode.name_iden.ident+" redefined")
 
@@ -1409,21 +1411,16 @@ def tc(current_cls, astnode, symbol_table = {}):
             else :
                 check_list.append(attribute.attr_name.ident)
  
-        # check every attibute
+        # add every attibute to symbol_table
         for attribute in class_map[astnode.name_iden.ident]:
             if attribute.attr_name.ident in symbol_table.keys():
                 symbol_table[attribute.attr_name.ident].append((attribute.attr_name.ident,attribute.attr_type.ident))
             else:
                 symbol_table[attribute.attr_name.ident]=[(attribute.attr_name.ident,attribute.attr_type.ident)] 
-                #tc(current_cls,attribute,symbol_table)
+        
         for attribute in astnode.attributes:
             tc(current_cls,attribute,symbol_table)
-        #for attribute in class_map[astnode.name_iden.ident]:
-        #    if attribute.attr_name.ident in symbol_table:
-        #        symbol_table[attribute.attr_name.ident].append((attribute.attr_name.ident,attribute.attr_type.ident))
-        #    else:
-        #        symbol_table[attribute.attr_name.ident]=[(attribute.attr_name.ident,attribute.attr_type.ident)] 
-
+        
         for method in astnode.methods:
             tc(current_cls,method,symbol_table)
 
