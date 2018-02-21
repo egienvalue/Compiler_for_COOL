@@ -1371,8 +1371,8 @@ def tc(current_cls, astnode, symbol_table = {}):
     global modified_ast
     global internal_ast
     if isinstance(astnode, Class):
+# check redefined Object
         symbol_table = {}
-        # check redefined Object
         if astnode.name_iden.ident in ["Object","Int","String","Bool","SELF_TYPE", "IO"]:
             raise Exception("ERROR: "+astnode.name_iden.line_num+": Type-Check: class "+astnode.name_iden.ident+" redefined")
 
@@ -1410,12 +1410,11 @@ def tc(current_cls, astnode, symbol_table = {}):
                 check_list.append(attribute.attr_name.ident)
  
         # check every attibute
-        if astnode.attributes != [] :
-            for attribute in class_map[astnode.name_iden.ident]:
-                if attribute.attr_name.ident in symbol_table.keys():
-                    symbol_table[attribute.attr_name.ident].append((attribute.attr_name.ident,attribute.attr_type.ident))
-                else:
-                    symbol_table[attribute.attr_name.ident]=[(attribute.attr_name.ident,attribute.attr_type.ident)] 
+        for attribute in class_map[astnode.name_iden.ident]:
+            if attribute.attr_name.ident in symbol_table.keys():
+                symbol_table[attribute.attr_name.ident].append((attribute.attr_name.ident,attribute.attr_type.ident))
+            else:
+                symbol_table[attribute.attr_name.ident]=[(attribute.attr_name.ident,attribute.attr_type.ident)] 
                 #tc(current_cls,attribute,symbol_table)
         for attribute in astnode.attributes:
             tc(current_cls,attribute,symbol_table)
@@ -1428,6 +1427,7 @@ def tc(current_cls, astnode, symbol_table = {}):
         for method in astnode.methods:
             tc(current_cls,method,symbol_table)
 
+        
     elif isinstance(astnode, Method):
         if astnode.method_type.ident not in class_map.keys()+["SELF_TYPE"]:
             raise Exception("ERROR: "+astnode.method_name.line_num+\
@@ -1553,7 +1553,7 @@ def tc(current_cls, astnode, symbol_table = {}):
             #astnode.exp_type = "SELF_TYPE"
             return "SELF_TYPE"
 
-	if symbol_table.get(astnode.ident) == None:
+	if astnode.ident not in symbol_table.keys():
             raise Exception ("ERROR: "+astnode.line_num+\
                     ": Type-Check: unbound identifier "+astnode.ident)
 	else:
@@ -1808,6 +1808,12 @@ def tc(current_cls, astnode, symbol_table = {}):
             if temp == "SELF_TYPE":
                 temp = current_cls.name_iden.ident
             t.append(temp)
+
+        if astnode.method_ident.ident not in [x[1] for x in
+                imp_map[current_cls.name_iden.ident]]:
+            raise Exception("ERROR: "+astnode.line_num+\
+                    ": Type-Check: unknown method "+astnode.method_ident.ident)
+
         method_tuple = [x for x in\
                 imp_map[current_cls.name_iden.ident] if\
                 x[1]==astnode.method_ident.ident][0]
