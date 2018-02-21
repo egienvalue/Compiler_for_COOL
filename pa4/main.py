@@ -838,93 +838,6 @@ def read_ast():
     return class_list
   
 
-
-
-#def print_parent_method (overriden_method_list, cls, class_list, num_method):
-#    
-#    method_count = 0
-#    if (cls.inherits_iden == None):
-#
-#        for method in cls.methods:
-#            if method not in [x.method_name for x in overriden_method_list] :
-#                method_count += 1
-#        print num_method + method_count
-#        for method in cls.methods:
-#            if method not in overriden_method_list :
-#                print method.method_name
-#                print str(len(method.formals))
-#                for formal in method.formals:
-#                    print formal.formal_name
-#    elif (cls.inherits_iden != None and cls.inherits_iden.ident not in
-#            ["IO","Object", "Int", "String", "Bool"]) :
-#        for method in cls.methods:
-#            if method not in [x.method_name for x in overriden_method_list] :
-#                method_count += 1
-#        for method in cls.methods:
-#            if check_overriden(method, filter(lambda x :
-#            x.name_iden.ident==cls.inherits_iden.ident, class_list)[0],
-#            class_list) :
-#                overriden_method_list.append(method)
-#
-#        print_method(overriden_method_list, filter(lambda x :
-#            x.name_iden.ident==cls.inherits_iden.ident, class_list)[0],
-#            class_list, method_count)
-#
-#    for method in overriden_method_list:
-#        print method_name
-#        print str(len(method.formals))
-#        for formal in method.formals:
-#            print formal.formal_name
-#    for method in cls.methods:
-#        if method not in overriden_method_list:
-#            print method_name
-#            print str(len(method.formals))
-#            for formal in method.formals:
-#                print formal.formal_name
-#
-#
-#def print_method(overriden_method_list, cls, class_list, num_method):
-#    method_count = 0
-#    if (cls.inherits_iden == None):
-#        for method in cls.methods:
-#            if method not in [x.method_name for x in overriden_method_list] :
-#                method_count += 1
-#        print num_method + method_count
-#        for method in cls.methods:
-#            if method not in overriden_method_list :
-#                print method.method_name
-#                print str(len(method.formals))
-#                for formal in method.formals:
-#                    print formal.formal_name
-#    elif (cls.inherits_iden != None and cls.inherits_iden.ident not in
-#            ["IO","Object", "Int", "String", "Bool"]) :
-#        for method in cls.methods:
-#            if method not in [x.method_name for x in overriden_method_list] :
-#                method_count += 1
-#        for method in cls.methods:
-#            if check_overriden(method, filter(lambda x :
-#            x.name_iden.ident==cls.inherits_iden.ident, class_list)[0],
-#            class_list) :
-#                overriden_method_list.append(method)
-#
-#        print_method(overriden_method_list, filter(lambda x :
-#            x.name_iden.ident==cls.inherits_iden.ident, class_list)[0],
-#            class_list, method_count)
-#
-#    for method in overriden_method_list:
-#        print method_name
-#        print str(len(method.formals))
-#        for formal in method.formals:
-#            print formal.formal_name
-#    for method in cls.methods:
-#        if method not in overriden_method_list:
-#            print method_name
-#            print str(len(method.formals))
-#            for formal in method.formals:
-#                print formal.formal_name
-      
-#overriden_methods = (method_name, method object, Class object)
-
 def tc(current_cls, astnode, symbol_table = {}):
     global ast
     global modified_ast
@@ -943,10 +856,7 @@ def tc(current_cls, astnode, symbol_table = {}):
                 raise Exception("ERROR: 0: Type-Check: Class Main " + \
                                 "method main not found")
             cls_name = [x[0] for x in imp_map["Main"] if x[1] == "main"][0]
-            cls_instance = [_cls for _cls in ast if _cls.name_iden.ident == \
-                    cls_name][0]
-            method_instance = [_method for _method in cls_instance.methods if \
-                                _method.method_name.ident == "main"][0]
+            method_instance = find_instance(cls_name, "main", ast)
             if method_instance.formals != []:
                 raise Exception("ERROR: 0: Type-Check: class Main method main with 0 parameters not found")
                 
@@ -1259,14 +1169,9 @@ def tc(current_cls, astnode, symbol_table = {}):
                     d_dispatch_exp_type)
 
         method_tuple = [x for x in imp_map[d_dispatch_exp_type_new] if\
-                x[1]==astnode.method_ident.ident]
-        method_tuple = method_tuple[0]
-        cls_instance = [_cls for _cls in ast+internal_ast if _cls.name_iden.ident == \
-                    method_tuple[0]]
-        cls_instance = cls_instance[0]
-        method_instance = [_method for _method in cls_instance.methods if \
-                                _method.method_name.ident ==\
-                                method_tuple[1]][0]
+                x[1]==astnode.method_ident.ident][0]
+        method_instance = \
+        find_instance(method_tuple[0],method_tuple[1],ast+internal_ast) 
         t_prime = [formal.formal_type.ident for formal in method_instance.formals]
         if len(t_prime)!= len(t):
             raise Exception("ERROR: "+astnode.line_num)
@@ -1314,14 +1219,9 @@ def tc(current_cls, astnode, symbol_table = {}):
                     s_dispatch_exp_type)
 
         method_tuple = [x for x in imp_map[s_dispatch_exp_type_new] if\
-                x[1]==astnode.method_ident.ident]
-        method_tuple = method_tuple[0]
-        cls_instance = [_cls for _cls in ast+internal_ast if _cls.name_iden.ident == \
-                    method_tuple[0]]
-        cls_instance = cls_instance[0]
-        method_instance = [_method for _method in cls_instance.methods if \
-                                _method.method_name.ident ==\
-                                method_tuple[1]][0] 
+                x[1]==astnode.method_ident.ident][0]
+        method_instance = \
+        find_instance(method_tuple[0],method_tuple[1],ast+internal_ast) 
         t_prime = [formal.formal_type.ident for formal in \
                  method_instance.formals]
         if len(t_prime)!= len(t):
@@ -1373,11 +1273,8 @@ def tc(current_cls, astnode, symbol_table = {}):
         method_tuple = [x for x in\
                 imp_map[current_cls.name_iden.ident] if\
                 x[1]==astnode.method_ident.ident][0]
-        cls_instance = [_cls for _cls in ast+internal_ast if _cls.name_iden.ident == \
-                    method_tuple[0]][0]
-        method_instance = [_method for _method in cls_instance.methods if \
-                                _method.method_name.ident ==\
-                                method_tuple[1]][0]
+        method_instance = \
+        find_instance(method_tuple[0],method_tuple[1],ast+internal_ast) 
 
         t_prime = [formal.formal_type.ident for formal in \
                  method_instance.formals]
@@ -1453,17 +1350,6 @@ def produce_imp_map(cls, ast):
         for method in cls.methods :
             imp_map[cls.name_iden.ident].append((cls.name_iden.ident, \
                     method.method_name.ident))
-        #imp_map[cls.name_iden.ident] = imp_map["Object"]+[]
-        #parent_method_name_list = [method_tuple[1] for i,method_tuple in \
-        #        enumerate(imp_map["Object"])]
-        #for method in cls.methods:
-        #    if method.method_name.ident in parent_method_name_list :
-        #        i = parent_method_name_list.index(method.method_name.ident)
-        #        imp_map[cls.name_iden.ident][i]=(cls.name_iden.ident,
-        #                method.method_name.ident)
-        #    else:
-        #        imp_map[cls.name_iden.ident].append((cls.name_iden.ident, \
-        #            method.method_name.ident))
         return list(imp_map[cls.name_iden.ident])
     elif cls.inherits_iden != None:
         parent_cls = filter(lambda x : x.name_iden.ident == cls.inherits_iden.ident,
@@ -1478,11 +1364,8 @@ def produce_imp_map(cls, ast):
                 parent_method_tuple = imp_map[cls.name_iden.ident][i]
                 imp_map[cls.name_iden.ident][i]=(cls.name_iden.ident,
                         method.method_name.ident)
-                cls_instance = [_cls for _cls in ast if _cls.name_iden.ident == \
-                    parent_method_tuple[0]][0]
-                method_instance = [_method for _method in cls_instance.methods if \
-                                _method.method_name.ident == parent_method_tuple[1]][0]
-                parent_method = method_instance 
+                parent_method = \
+                find_instance(parent_method_tuple[0],parent_method_tuple[1], ast)
                 ## check formals
                 if len(parent_method.formals) != len(method.formals):
                     print "ERROR: "+method.method_name.line_num+\
@@ -1509,18 +1392,7 @@ def produce_imp_map(cls, ast):
                 imp_map[cls.name_iden.ident].append((cls.name_iden.ident, \
                     method.method_name.ident))
         return list(imp_map[cls.name_iden.ident])
-        #if cls.inherits_iden.ident != "IO":
-        #    parent_cls = filter(lambda x : x.name_iden.ident == cls.inherits_iden.ident,
-        #                class_list)[0]
-        #    #recursive call
-        #    imp_map[cls.name_iden.ident] = produce_imp_map(parent_cls, ast)
-        #    parent_method_name_list = [method_tuple[1] for i,method_tuple in \
-        #        enumerate(imp_map[cls.name_iden.ident])]
-        #else:
-        #    imp_map[cls.name_iden.ident] = imp_map["IO"] + []
-        #    parent_method_name_list = [method_tuple[1] for i,method_tuple in \
-        #        enumerate(imp_map["IO"])]
-
+        
         for method in cls.methods:
             if method.method_name.ident in parent_method_name_list :
                 i = parent_method_name_list.index(method.method_name.ident)
@@ -1670,10 +1542,7 @@ def print_imp_map(imp_map, ast):
         ret += str(len(method_list)) + "\n"
         for method_tuple in method_list :
             ret += method_tuple[1] + "\n"
-            cls_instance = [_cls for _cls in ast if _cls.name_iden.ident == \
-                    method_tuple[0]][0]
-            method_instance = [_method for _method in cls_instance.methods if \
-                                _method.method_name.ident == method_tuple[1]][0]
+            method_instance = find_instance(method_tuple[0],method_tuple[1],ast) 
             ret += str(len(method_instance.formals)) + "\n"
             for formal in method_instance.formals :
                 ret += formal.formal_name.ident + "\n"
@@ -1706,6 +1575,14 @@ def print_parent_map(parent_map, ast):
     for child, parent in parent_map:
         ret += child + "\n" + parent+"\n"
     fout.write(ret)
+
+def find_instance(cls_name, method_name, ast):
+    cls_instance = [_cls for _cls in ast if _cls.name_iden.ident == \
+                    cls_name][0]
+    method_instance = [_method for _method in cls_instance.methods if \
+                                _method.method_name.ident == method_name][0]
+    return method_instance
+
 
 def main():
     global class_map_print_flag
@@ -1818,7 +1695,6 @@ def main():
         #print cls
         fout.write(str(cls))
     
-                
-
 if __name__ == '__main__':
     main()
+
