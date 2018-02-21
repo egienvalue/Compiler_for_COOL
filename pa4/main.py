@@ -6,11 +6,20 @@ import copy
 import os
 import traceback
 
+#---------------------------------------------------------------------------------
+#
+#	part 0. Global Variables used in the program
+#
+# In this part, we designed several data structures to store the global variables
+# that we used, most important ones are class_map, imp_map and parent_map, which are
+# required to output in PA4. There are build-in classes and methods that are not in 
+# ast, so we simply add them during initialization process
+#
+#---------------------------------------------------------------------------------
+
 ast_lines = []
 class_list = []
 ast = []
-class_map_print_flag = 0
-#type_filename = "my_" + (sys.argv[1])[:-4] + "-type"
 type_filename =  (sys.argv[1])[:-4] + "-type"
 fout = open(type_filename, 'w')
 class_map = {"Object":[], "Int":[], "String":[], "Bool":[], "IO":[]}
@@ -24,16 +33,23 @@ imp_map = \
            ("IO","in_int"),("IO","in_string"),("IO","out_int"),("IO","out_string")]
 }
 parent_map = {"Int":"Object", "String":"Object", "Bool":"Object"}
-# define multiple classes
+
+#---------------------------------------------------------------------------------
+#
+#	part 1. Class Definition
+# In this part, we designed multiple classes for storing ast nodes as did in video 
+# guides. This helps us to find any node we want from the root of ast
+#
+#---------------------------------------------------------------------------------
+
+
 class Expression(object):
-    global class_map_print_flag
     line_num = None
     exp_type = "No_TYPE"
 
     def s(self):
         ret = str(self.line_num) + "\n"
-        if (class_map_print_flag == 1):
-            ret += str(self.exp_type) + "\n"
+        ret += str(self.exp_type) + "\n"
         return ret
 
     def __init__(self, _line_num):
@@ -614,7 +630,14 @@ class Class(object):
         return str(self)
 
 
-# print section
+#---------------------------------------------------------------------------------
+#
+#	part 2. Print Section
+# Start by get_line(), this section is able to recursively print all sections in 
+# the ast. This part is nothing special, we also get them directly from video guide
+#
+#---------------------------------------------------------------------------------
+
 def get_line():
     global ast_lines
     if ast_lines == []:
@@ -837,11 +860,25 @@ def read_ast():
 
     return class_list
   
+#---------------------------------------------------------------------------------
+#
+#	part 3. Type check
+# In this section, we wrote a big type check function. This part is the most important
+# part in our program. Please see notes for each case for more details. The type check 
+# function takes three parameters: current_cls, astnode and symbol_table. current_cls 
+# records the current class that we are checking, astnode is the node we are checking,
+# symbol_table is some map we have to maintain during the checking process for the 
+# scope checking.
+#
+#---------------------------------------------------------------------------------
 
 def tc(current_cls, astnode, symbol_table = {}):
     global ast
     global modified_ast
     global internal_ast
+
+    # part 3.1 class case: if the node is a class
+
     if isinstance(astnode, Class):
         # creat new symbol table for class
         symbol_table = {}
@@ -893,14 +930,16 @@ def tc(current_cls, astnode, symbol_table = {}):
         for method in astnode.methods:
             tc(current_cls,method,symbol_table)
 
-        
+    # part 3.2 method case: if the astnode is a method
+     
     elif isinstance(astnode, Method):
+	# check method return type   
         if astnode.method_type.ident not in class_map.keys()+["SELF_TYPE"]:
             raise Exception("ERROR: "+astnode.method_name.line_num+\
                     ": Type-Check: class has method "+\
                     astnode.method_name.ident + \
                     " with unknown return type " + astnode.method_type.ident)
-        ## check duplicate formal
+        ## check formals, the formals need to be unique and with known type
         check_list = []
         for formal in astnode.formals:
             if formal.formal_type.ident not in class_map.keys() :
@@ -920,7 +959,7 @@ def tc(current_cls, astnode, symbol_table = {}):
                         " duplicate formal "+formal.formal_name.ident)
             else :
                 check_list.append(formal.formal_name.ident)
-
+	# update symbol table using formals
         for formal in astnode.formals:
             if formal.formal_name.ident in symbol_table.keys():
 	        symbol_table[formal.formal_name.ident].append \
@@ -928,7 +967,7 @@ def tc(current_cls, astnode, symbol_table = {}):
             else:
 	        symbol_table[formal.formal_name.ident] = \
                         [(formal.formal_name.ident, formal.formal_type.ident)]
-        
+        # check if the return type the same as the expression type
         method_body_type = tc(current_cls,astnode.body_exp,symbol_table)
         if method_body_type == "SELF_TYPE" and astnode.method_type.ident !=\
         "SELF_TYPE":
@@ -938,29 +977,26 @@ def tc(current_cls, astnode, symbol_table = {}):
             raise Exception("ERROR: "+astnode.method_type.line_num+\
                     ": Type-Check: "+method_body_type+" does not conform to "+\
                     astnode.method_type.ident+" in "+ astnode.method_name.ident)
-        
+        # pop formals out of the symbol table
         for formal in astnode.formals:
             symbol_table[formal.formal_name.ident].pop()
             if symbol_table[formal.formal_name.ident] == []:
                 symbol_table.pop(formal.formal_name.ident)
 
-
+    # part 3.3 attribut case: if the node is an attribute
     elif isinstance(astnode, Attribute):
+	# check if the attribute has unkown type
         if astnode.attr_type.ident not in class_map.keys()+["SELF_TYPE"]:
             raise Exception("ERROR: "+astnode.attr_type.line_num+\
                     ": Type-Check: class "+current_cls.name_iden.ident+\
                     " has attribute "+astnode.attr_name.ident+
                     " with unknown type "+astnode.attr_type.ident)
+	# attribute can not be named self
         if astnode.attr_name.ident == "self":
             raise Exception("ERROR: "+astnode.attr_name.line_num + \
             ": Type-Check: class has an attribute named self")
         if astnode.initialization :
-            #if astnode.attr_name.ident in symbol_table:
-	    #    symbol_table[astnode.attr_name.ident].append \
-            #            ((astnode.attr_name.ident, astnode.attr_type.ident))
-            #else:
-	    #    symbol_table[astnode.attr_name.ident] = \
-            #            [(astnode.attr_name.ident, astnode.attr_type.ident)]
+	# check if the attribute is correctly initiated
             t1 = tc(current_cls,astnode.exp, symbol_table)
             if t1 == "SELF_TYPE" and astnode.attr_type.ident != "SELF_TYPE":
                 t1 = current_cls.name_iden.ident
@@ -969,34 +1005,34 @@ def tc(current_cls, astnode, symbol_table = {}):
                         ": Type-Check: "+t1+\
                         " does not conform to "+astnode.attr_type.ident+\
                         " in initialized attribute")
-        
-    elif isinstance(astnode, Let):
 
-       # for i in range(len(astnode.binding_list)):
-       #     if astnode.binding_list[i].initialization:
-       #         binding_type = tc(current_cls,astnode.binding_list[i].value_exp,symbol_table)
-                #TODO
+    # part 3.4 expression case: if the astnode is an expr
+       
+    elif isinstance(astnode, Let):
+	# check if binding in let has unknown type
         for binding in astnode.binding_list:
             if binding.type_ident.ident not in class_map.keys()+["SELF_TYPE"]:
                 raise Exception("ERROR: "+binding.type_ident.line_num+\
                         ": Type-Check: unknown type "+binding.type_ident.ident) 
+	    # self can not appear in a lat expr
             if binding.var_ident.ident == "self":
                 raise Exception("ERROR: "+binding.var_ident.line_num+\
                         ": Type-Check: binding self in a let is not allowed")
+	    # undate symbol table
             if binding.var_ident.ident in symbol_table.keys():
                 symbol_table[binding.var_ident.ident].append((binding.var_ident.ident,binding.type_ident.ident))
             else:
                 symbol_table[binding.var_ident.ident]=[(binding.var_ident.ident,binding.type_ident.ident)] 
+	    # check if binding type not equal to binding identifier type
             if binding.initialization:
                 binding_type = \
                 tc(current_cls,binding.value_exp,symbol_table)
-                #TODO self check
                 if binding.type_ident.ident != \
                         find_common_ancestor(binding.type_ident.ident,
                                 binding_type):
                             raise Exception("ERROR: "+
                                     binding.var_ident.line_num + ": Let")
-
+	# update symbol table
 	t1 = tc(current_cls, astnode.exp, symbol_table )
         for binding in astnode.binding_list:	
 	    symbol_table[binding.var_ident.ident].pop()
@@ -1005,7 +1041,7 @@ def tc(current_cls, astnode, symbol_table = {}):
 
 	astnode.exp_type = t1
 	return t1
-
+    
     elif isinstance(astnode, String):
         astnode.exp_type = "String"
 	return "String"
@@ -1013,19 +1049,17 @@ def tc(current_cls, astnode, symbol_table = {}):
     elif isinstance(astnode, Integer):
         astnode.exp_type = "Int"
 	return "Int"
-
+    # check if identifier is in symbol table, if not raise exception
     elif isinstance(astnode, Identifier):
         if astnode.ident == "self":
-            #astnode.exp_type = "SELF_TYPE"
             return "SELF_TYPE"
 
 	if astnode.ident not in symbol_table.keys():
             raise Exception ("ERROR: "+astnode.line_num+\
                     ": Type-Check: unbound identifier "+astnode.ident)
 	else:
-            #astnode.exp_type = symbol_table[astnode.ident][-1][1]
 	    return symbol_table[astnode.ident][-1][1]
-
+    # arithmetic check
     elif isinstance(astnode, (Plus, Minus, Times, Divide)):
 
 	t1 = tc(current_cls,astnode.lhs, symbol_table)
@@ -1036,7 +1070,7 @@ def tc(current_cls, astnode, symbol_table = {}):
 	else:
 	    raise Exception ("ERROR: "+astnode.line_num+\
                     ": Type-Check: arithmetic error")
-
+    # comparison check
     elif isinstance(astnode, (Le, Eq, Lt)):
 
         t1 = tc(current_cls,astnode.lhs, symbol_table)
@@ -1054,13 +1088,16 @@ def tc(current_cls, astnode, symbol_table = {}):
 
     elif isinstance(astnode, FalseExp):
         astnode.exp_type = "Bool"
-        return "Bool"    
+        return "Bool"   
+    # assign check 
     elif isinstance(astnode, Assign):
 
         assign_ident_type = tc(current_cls,astnode.ident, symbol_table)
         assign_exp_type = tc(current_cls,astnode.exp, symbol_table)
+	# check assign to self
         if astnode.ident.ident == "self":
             raise Exception("ERROR: "+astnode.line_num+": Type-Check: cannot assign to self")
+	# check is exp conform to identifier
         if assign_ident_type != find_common_ancestor(assign_ident_type,
                 assign_exp_type): 
             raise Exception("ERROR: "+astnode.line_num+\
@@ -1069,7 +1106,7 @@ def tc(current_cls, astnode, symbol_table = {}):
                     " in assignment")
         astnode.exp_type = assign_exp_type
         return astnode.exp_type
-
+    # can not new a class without definition first
     elif isinstance(astnode, New):
         if astnode.ident.ident not in class_map.keys()+["Object", "SELF_TYPE"]:
                 raise Exception("ERROR: "+astnode.ident.line_num+\
@@ -1079,13 +1116,14 @@ def tc(current_cls, astnode, symbol_table = {}):
         else :
             astnode.exp_type = astnode.ident.ident
         return astnode.exp_type
-
+    # if check
     elif isinstance(astnode, If):
 
         node_topo = []
         predicate_type = tc(current_cls, astnode.predicate, symbol_table)
         then_body_type = tc(current_cls,astnode.then_body, symbol_table)
         else_body_type = tc(current_cls,astnode.else_body, symbol_table)
+	# predicate type must be bool
         if predicate_type != "Bool":
             raise Exception("ERROR: "+astnode.line_num+\
                     ": Type-Check: conditional has type "+predicate_type+" instead of Bool")
@@ -1107,11 +1145,12 @@ def tc(current_cls, astnode, symbol_table = {}):
             block_exp_type = tc(current_cls,astnode.exp_list[i], symbol_table)
         astnode.exp_type = block_exp_type
         return block_exp_type
-
+    # while check
     elif isinstance(astnode, While):
 
         predicate_type = tc(current_cls,astnode.predicate, symbol_table)
         body_type = tc(current_cls,astnode.body, symbol_table)
+	# conditional type must be bool
         if predicate_type != "Bool":
             raise Exception("ERROR: "+astnode.line_num+ \
                     ": Type-Check: conditional has type "+predicate_type+ \
@@ -1130,7 +1169,7 @@ def tc(current_cls, astnode, symbol_table = {}):
         return t1
 
     elif isinstance(astnode, Not):
-
+	# not exp type must be bool
         exp_type = tc(current_cls,astnode.exp, symbol_table)
         if exp_type != "Bool":
             raise Exception("ERROR: "+astnode.line_num+ \
@@ -1139,7 +1178,7 @@ def tc(current_cls, astnode, symbol_table = {}):
         astnode.exp_type = "Bool"
         return "Bool"
     elif isinstance(astnode, Negate):
-
+	# negate exp type must be int
         exp_type = tc(current_cls,astnode.exp, symbol_table)
         if exp_type != "Int":
             raise Exception("ERROR: "+astnode.line_num+ \
@@ -1147,6 +1186,7 @@ def tc(current_cls, astnode, symbol_table = {}):
                     "instead of Int")
         astnode.exp_type = "Int"
         return "Int"
+    # dynamic_dispatch check
     elif isinstance(astnode, Dynamic_Dispatch):
         d_dispatch_exp_type = tc(current_cls,astnode.exp, symbol_table)
         if d_dispatch_exp_type == "SELF_TYPE":
@@ -1187,16 +1227,16 @@ def tc(current_cls, astnode, symbol_table = {}):
             else:
                 astnode.exp_type = method_instance.method_type.ident
                 return astnode.exp_type
-            #print astnode.exp_type
+
         else:
-            #if method_instance.body_exp.exp_type == "No_TYPE":
-            #    tc(cls_instance,cls_instance)
+
             if method_instance.method_type.ident == "SELF_TYPE":
                 astnode.exp_type = d_dispatch_exp_type
                 return astnode.exp_type
             else:
                 astnode.exp_type = method_instance.method_type.ident
                 return astnode.exp_type
+    # static_dispatch check
     elif isinstance(astnode, Static_Dispatch):
         # check the existence of method
         s_dispatch_exp_type = tc(current_cls,astnode.exp, symbol_table)
@@ -1210,7 +1250,7 @@ def tc(current_cls, astnode, symbol_table = {}):
             if temp == "SELF_TYPE":
                 temp = current_cls.name_iden.ident
             t.append(temp)
-        
+        # check if method is in imp map
         if astnode.method_ident.ident not in [x[1] for x in
                 imp_map[s_dispatch_exp_type_new]]:
             raise Exception("ERROR: "+astnode.line_num+\
@@ -1224,9 +1264,10 @@ def tc(current_cls, astnode, symbol_table = {}):
         find_instance(method_tuple[0],method_tuple[1],ast+internal_ast) 
         t_prime = [formal.formal_type.ident for formal in \
                  method_instance.formals]
+	# check if the method has enough number of formals
         if len(t_prime)!= len(t):
             raise Exception("ERROR: "+astnode.line_num) 
-            
+        # formal check : type must agree 
         for i in range(len(t)):
             if t_prime[i] != find_common_ancestor(t_prime[i],t[i]):
                 raise Exception("ERROR: "+astnode.line_num+\
@@ -1246,17 +1287,16 @@ def tc(current_cls, astnode, symbol_table = {}):
             else:
                 astnode.exp_type = method_instance.method_type.ident
                 return astnode.exp_type
-            #print astnode.exp_type
+
         else:
-            #if method_instance.body_exp.exp_type == "No_TYPE":
-            #    tc(cls_instance,cls_instance)
+
             if method_instance.method_type.ident == "SELF_TYPE":
                 astnode.exp_type = s_dispatch_exp_type
                 return astnode.exp_type
             else:
                 astnode.exp_type = method_instance.method_type.ident
                 return astnode.exp_type
-
+    # self_dispatch checl
     elif isinstance(astnode, Self_Dispatch):
         t = []
         for arg in astnode.args:
@@ -1267,6 +1307,7 @@ def tc(current_cls, astnode, symbol_table = {}):
 
         if astnode.method_ident.ident not in [x[1] for x in
                 imp_map[current_cls.name_iden.ident]]:
+	    # check if the method is in imp map
             raise Exception("ERROR: "+astnode.line_num+\
                     ": Type-Check: unknown method "+astnode.method_ident.ident)
 
@@ -1278,6 +1319,7 @@ def tc(current_cls, astnode, symbol_table = {}):
 
         t_prime = [formal.formal_type.ident for formal in \
                  method_instance.formals]
+	# formal check
         if len(t_prime)!= len(t):
             raise Exception("ERROR: "+astnode.line_num)
         for i in range(len(t)):
@@ -1287,24 +1329,26 @@ def tc(current_cls, astnode, symbol_table = {}):
                         " does not conform to formal type "+t_prime[i])
 
         astnode.exp_type = method_instance.method_type.ident
-            #print astnode.exp_type
         return astnode.exp_type
-
+    # case check 
     elif isinstance(astnode, Case):
         t_new = []
         t0 = tc(current_cls,astnode.exp,symbol_table)
         for i,case_element in enumerate(astnode.element_list):
             if case_element.type_ident.ident == "SELF_TYPE":
+		# check if the branch is self_type
                 raise Exception("ERROR: "+case_element.type_ident.line_num+\
                 ": Type-Check: using SELF_TYPE as a case branch type is not allowed")
             for j, target_case_element in enumerate(astnode.element_list):
                 if j!=i and target_case_element.type_ident.ident == \
                 case_element.type_ident.ident:
+		# check if all the branches return different type
                     raise Exception("ERROR: "+\
                             target_case_element.type_ident.line_num+\
                             ": Type-Check: case branch type "+ \
                             target_case_element.type_ident.ident+\
                             " is bound twice")
+	# update symbol table
         for case_element in astnode.element_list:
             if case_element.var_ident.ident in symbol_table.keys():
                 symbol_table[case_element.var_ident.ident].append((case_element.var_ident.ident,case_element.type_ident.ident))
@@ -1322,9 +1366,28 @@ def tc(current_cls, astnode, symbol_table = {}):
         
         astnode.exp_type = t_new[0]
         return astnode.exp_type
-            
+    # catch unkown expression, and raise error        
     else:
     	raise Exception ("ERROR: Unkown Expression type!")
+
+#---------------------------------------------------------------------------------
+#
+#	part 4. Produce Map. 
+# This part of our code generates three maps which are stated in part 0.
+# These produce-functions are called in the main function below. Note that those 
+# three functions are not produced together, each of them are called for some semantic
+# check, which will be discussed in more detail in main function.
+# Meanwhile, we also defined three print-functions, to print maps as instructed.
+# What is more, we defined some helper functions:
+#	find_common_ancestor: use to find the common ancestor of two classes, takes 
+#				two classes as input, and output their LUB
+#	produce_internal_ast: used to produce ast for five build-in classes:
+#				Object, IO, Int, String, Bool, return a list of classes
+#	find_instance: In our maps, we store the name(String) of classes, however, 
+#				when we are perform type checking, we want the instance
+#				of the class, this is when this function is called.
+#
+#---------------------------------------------------------------------------------
 
 def produce_class_map(cls,ast):
     global class_map
@@ -1403,6 +1466,12 @@ def produce_imp_map(cls, ast):
                     method.method_name.ident))
         return list(imp_map[cls.name_iden.ident])
 
+def produce_parent_map(ast):
+    global parent_map
+    class_list = [c for c in ast]
+    for cls in class_list:
+        if cls.inherits_iden != None:
+            parent_map[cls.name_iden.ident] = cls.inherits_iden.ident
 
 def find_common_ancestor(type1,type2):
             global parent_map
@@ -1427,13 +1496,6 @@ def find_common_ancestor(type1,type2):
                     return temp
             # if not found
             return "Object"
-
-def produce_parent_map(ast):
-    global parent_map
-    class_list = [c for c in ast]
-    for cls in class_list:
-        if cls.inherits_iden != None:
-            parent_map[cls.name_iden.ident] = cls.inherits_iden.ident
 
 def produce_internal_ast():
     name_iden = Identifier("0", "Object")
@@ -1583,9 +1645,17 @@ def find_instance(cls_name, method_name, ast):
                                 _method.method_name.ident == method_name][0]
     return method_instance
 
+#---------------------------------------------------------------------------------
+#
+#	part 5. Main Function
+# This is the pipeline of our program: read ast from -cl-ast, produce parent map,
+# class-level pre-check, produce imp map and parent map and print them out. The more
+# detailed description is discussed below.
+#
+#---------------------------------------------------------------------------------
+
 
 def main():
-    global class_map_print_flag
     global ast_lines
     global class_map
     global imp_map
@@ -1597,10 +1667,16 @@ def main():
         print("Specify .cl-ast input file.")
         exit()
 
+# part 5.1 read ast produced in PA3 by calling read_ast() function
+
     with open(sys.argv[1]) as f:
         ast_lines = [l[:-1] for l in f.readlines()]
     internal_ast = produce_internal_ast()
     ast = read_ast()
+
+# part 5.2 produce parent map. Note that in this part, we need to first modify our ast since
+# those build-in types are not added in PA3. So we built a ast whose root is Object and generated
+# parent map from it
 
     modified_ast = copy.deepcopy(ast)
     for i,cls in enumerate(modified_ast):
@@ -1609,6 +1685,8 @@ def main():
     modified_ast = modified_ast + internal_ast
 
     produce_parent_map(modified_ast)
+
+# part 5.3 class level pre-check. 
 
     ### check if class is defined more than once
     for i, cls in enumerate(ast):
@@ -1645,6 +1723,7 @@ def main():
                     "Type-Check: Class inherits from non-existent class:"\
                     + cls.inherits_iden.ident
                 exit()
+
     ### check the existance of Main class
     if "Main" not in [cls.name_iden.ident for cls in ast]:
         print "ERROR: 0: Type-Check: class Main not found"
@@ -1667,7 +1746,9 @@ def main():
         t_marked=[]
         visit(cls)
 
-    ### 
+# part 5.4 all pre-check done! Now it is safe to produce class map and implementation map
+# perform type check for each class by calling type check function
+
     for cls in ast+internal_ast:
         produce_class_map(cls, ast+internal_ast)
     for cls in modified_ast:
@@ -1676,23 +1757,18 @@ def main():
         for cls in ast:
             tc(cls,cls)
     except Exception as e:
-        #exc_type, exc_obj, exc_tb = sys.exc_info()
-        #fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        #print(exc_type, fname, exc_tb.tb_lineno)
-        #print(traceback.format_exc())
-        #fout.write(e.message)
 	print e.message
         exit()
-    ### successful type checking, print AAST
-    class_map_print_flag = 1 
+
+# part 5.5 all check done! Print class map, followed by imp map, followed by parent map, 
+# followed by aast as required by PA4
+
     print_class_map(class_map, modified_ast)
-    class_map_print_flag = 1
     print_imp_map(imp_map, ast+internal_ast)
     print_parent_map(parent_map, modified_ast)
-    #print str(len(ast))
+    # print aast
     fout.write(str(len(ast))+"\n")
     for cls in ast:
-        #print cls
         fout.write(str(cls))
     
 if __name__ == '__main__':
