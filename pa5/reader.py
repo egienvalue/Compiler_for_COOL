@@ -231,8 +231,8 @@ def read_class_map():
         num_attr = int(get_line())
         for j in range(num_attr):
             attr_init = get_line()
-            attr_name = get_line()
-            attr_type = get_line()
+            attr_name = Identifier("no_num",get_line())
+            attr_type = Identifier("no_num",get_line())
             if attr_init == "no_initializer":
                 attr_instance = Attribute(attr_name, attr_type, False, None)
                 class_map[cls_name].append(attr_instance)
@@ -250,15 +250,16 @@ def read_imp_map():
         imp_map[cls_name] = []
         num_method = int(get_line())
         for j in range(num_method):
-            method_name = get_line()
+            method_name = Identifier("no_num",get_line())
             num_formal = int(get_line())
             formals = []
             for m in range(num_formal):
-                formal_name = get_line()
-                formals.append(Formal(formal_name, "Formal_type"))
+                formal_name = Identifier("no_num",get_line())
+                formals.append(Formal(formal_name, Identifier("no_num","Formal_type")))
             src_class = get_line()
             method_body = read_exp()
-            method_instance = Method(method_name, formals, "Method_type",
+            method_instance = Method(method_name, formals,
+                    Identifier("no_num","Method_type"),
                                     method_body)
             imp_map[cls_name].append((src_class,method_instance))
     return imp_map 
