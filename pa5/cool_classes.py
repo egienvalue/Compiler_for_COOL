@@ -104,7 +104,6 @@ class New(Expression):
     def __init__(self, _line_num, _exp_type, _ident):
         Expression.__init__(self, _line_num, _exp_type)
         self.ident = _ident
-        self.exp_type = _ident.ident
 
     def __str__(self):
         ret = self.s()

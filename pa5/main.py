@@ -14,9 +14,10 @@ rax = RAX()
 eax = EAX()
 rbx = RBX() 
 rcx = RCX() 
-rdx = RDX() 
+rdx = RDX()
 rsi = RSI() 
-rdi = RDI() 
+rdi = RDI()
+edi = EDI()
 rbp = RBP() 
 rsp = RSP()
 r8  = R(8)
@@ -59,7 +60,7 @@ def attr2asm(attributes):
             ret += str(MOV("q", acc_reg, MEM(24+8*i, self_reg))) + "\n"
     
     for i, attr in enumerate(attributes):
-        if attr.initialization != None:
+        if attr.exp != None:
             ret+= tab_6 + "## self[%d] %s initializer <- %s\n" % \
                 (i+3,attr.attr_name.ident,str(attr.exp.exp_type))  
             ret += cgen(attr.exp) 
@@ -71,7 +72,9 @@ def attr2asm(attributes):
 
 def cgen(exp):
     ret = ""
+    global label
     if isinstance(exp, New):
+        ret += "## new %s" % exp.exp_type + "\n"
         ret += str(PUSH("q", rbp)) + "\n"
         ret += str(PUSH("q", self_reg)) + "\n"
         ret += str(MOV("q","$%s..new" % exp.exp_type, temp_reg)) + "\n"
@@ -81,7 +84,7 @@ def cgen(exp):
         return ret
 
     if isinstance(exp, (TrueExp, FalseExp)):
-        ret += cgen(New(0, "Bool", None)) + "\n"
+        ret += cgen(New(0, "Bool", None))
         if isinstance(exp, TrueExp):
             ret += str(MOV("q", "$1", temp_reg)) + "\n"
         else: 
@@ -90,22 +93,22 @@ def cgen(exp):
         return ret
  
     if isinstance(exp, String):
-        ret += cgen(New(0,"String",None)) + "\n"
+        ret += cgen(New(0,"String",None)) 
         # Creat space store new string
         ## string10 holds "hello world"
         #                movq $string10, %r14
         #                movq %r14, 24(%r13)
-        string_key = "string%d" % len(string_map) + 1
+        string_key = "string%d" % (len(string_map) + 1)
         string_val = exp.str_val
         string_map[string_key] = string_val
-        
-        ret += str(MOV("q", "$"+string_key, temp_reg))
-        ret += str(MOV("q", temp_reg, MEM(24, acc_reg)))
+        ret += "## %s holds %s" % (string_key, string_val) + "\n"
+        ret += str(MOV("q", "$"+string_key, temp_reg)) + "\n"
+        ret += str(MOV("q", temp_reg, MEM(24, acc_reg))) + "\n"
         return ret
 
     if isinstance(exp, Integer): 
 
-        ret += cgen(New(0,"Int",None)) + "\n"
+        ret += cgen(New(0,"Int",None))
         ret += str(MOV("q", exp.int_val, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
         return ret
@@ -235,24 +238,24 @@ def cgen(exp):
         # successfully perform jump operand, label plus one
         
         # Creat Space for Exception String
-        string_key = "string%d" % len(string_map) + 1
-        string_val = "ERROR: %d: Exception: division by zero\\n" % exp.line_num
+        string_key = "string%d" % (len(string_map) + 1)
+        string_val = "ERROR: %s: Exception: division by zero\\n" % exp.line_num
         string_map[string_key] = string_val
         ret += str(MOV("q", "$"+string_key, acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, rdi)) + "\n"
         
         ret += str(CALL("cooloutstr")) + "\n"
-        ret += str(MOV("l", "$0", edi) + "\n"
+        ret += str(MOV("l", "$0", edi)) + "\n"
         ret += str(CALL("exit")) + "\n"
         ret += ".globl l%d" % label + "\n"
         ret += "{: <24}".format("l%d:" % label) + "## division is OK\n"
-        ret += str(MOV(MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
+        ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", MEM(0, rbp), temp_reg)) + "\n"
         ret += str(MOV("q", "$0", rdx)) + "\n"
         ret += str(MOV("q", temp_reg, rax)) + "\n"
         ret += "cdq\n"
-        ret += str(IDIV("l", acc_reg_d))
-        ret += str(MOV("q", rax, acc_reg))
+        ret += str(IDIV("l", acc_reg_d)) + "\n"
+        ret += str(MOV("q", rax, acc_reg)) + "\n"
 
         # store back to temporary location of MEM
         ret += str(MOV("q", acc_reg, MEM(0,rbp))) + "\n"
