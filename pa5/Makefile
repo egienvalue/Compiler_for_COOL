@@ -5,6 +5,7 @@ pa5: golden reader.py cool_classes.py
 	python main.py test.cl-type
 golden:
 	./cool.dms --x86 test.cl
+	./cool.dms --asm test.cl
 
 clean:
 	rm *.cl-lex *.cl-ast *.cl-type

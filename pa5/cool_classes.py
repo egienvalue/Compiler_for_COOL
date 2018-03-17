@@ -67,7 +67,7 @@ class String(Expression):
 
 
 class TrueExp(Expression):
-    def __init__(self, _line_num):
+    def __init__(self, _line_num, _exp_type):
         Expression.__init__(self, _line_num, _exp_type)
         self.exp_type = "Bool"
 
@@ -77,7 +77,7 @@ class TrueExp(Expression):
         return ret
 
 class FalseExp(Expression):
-    def __init__(self, _line_num):
+    def __init__(self, _line_num, _exp_type):
         Expression.__init__(self, _line_num, _exp_type)
         self.exp_type = "Bool"
 
@@ -278,7 +278,7 @@ class If(Expression):
     then_body = None
     else_body = None
 
-    def __init__ (self, _line_num, _predicate, _then_body, _else_body):
+    def __init__ (self, _line_num, _exp_type, _predicate, _then_body, _else_body):
         Expression.__init__(self, _line_num, _exp_type)
         self.predicate = _predicate
         self.then_body = _then_body
