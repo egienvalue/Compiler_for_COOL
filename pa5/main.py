@@ -36,7 +36,31 @@ label = 0
 string_map = {}
 symbol_table = {}
 ocuppied_temp = []
+class_tag = {}
 
+def find_common_ancestor(type1,type2):
+            global parent_map
+            temp = type1
+            node_topo = []
+            if temp != "SELF_TYPE" :
+                while(parent_map.get(temp)!=None):
+                    node_topo.append(temp)
+                    temp = parent_map[temp]
+            else:
+                node_topo.append("SELF_TYPE")
+                node_topo.append("Object")
+       
+            temp = type2
+            if temp != "SELF_TYPE" :
+                while(parent_map.get(temp)!=None):
+                    if temp in node_topo:
+                        return temp
+                    temp = parent_map[temp]
+            else:
+                if temp in node_topo:
+                    return temp
+            # if not found
+            return "Object"
 
 def attr2asm(cls_name, attributes):
     global class_map
@@ -55,7 +79,7 @@ def attr2asm(cls_name, attributes):
         symbol_table[attr.attr_name.ident] = [str(MEM(24 + 8*i, self_reg))]
         ret += tab_6 +  "## self[%d] holds field %s (%s)\n" % (i+3,
                 attr.attr_name.ident, attr.attr_type.ident)
-        if attr.attr_type.ident not in ["SELF_TYPE","Object", "IO"]:
+        if attr.attr_type.ident not in ["SELF_TYPE","Object","IO"]:
             ret += tab_6 + "## new %s\n" % attr.attr_type.ident
             ret += str(PUSH("q",rbp)) + "\n"
             ret += str(PUSH("q",self_reg)) + "\n"
@@ -326,6 +350,118 @@ def cgen(exp):
     if isinstance(exp, Binding):
         ret += cgen(exp.value_exp)
         return ret
+
+    if isinstance(exp, Case):
+        free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
+
+        br_label_map = {}
+        ret += tab_6 + "## case expression begins\n"
+        ret += cgen(exp.exp)
+
+        # detect void case
+        ret += str(CMP("q", "$0", acc_reg))+ "\n"
+        label += 1
+        ret += str(JE("l%d" % label)) + "\n"
+        br_label_map["void"] = label
+        # store acc_reg to temp0
+
+        ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
+        # store case.exp class tag to acc reg
+        ret += str(MOV("q", MEM(0, acc_reg), acc_reg)) + "\n"
+
+        br_cls_list = []
+        fix_br_label = []
+        for idx, case_ele in enumerate(exp.element_list):
+            label += 1
+            br_label_map[case_ele.type_ident.ident] = label
+            fix_br_label.append(case_ele.type_ident.ident)
+            ret += tab_6 + "## case %s will jump to l%d" % \
+                            (case_ele.type_ident.ident, label) + "\n"
+
+        ret += tab_6 + "## case expression: compare type tags\n"
+        
+        # traverse all classes, dectect the jmp label
+        label += 1
+        error_case_label = label
+        label += 1
+        case_end_label = label
+        for idx,cls_name in enumerate(sorted(class_map.keys())):
+            if cls_name not in fix_br_label:
+                for cls in fix_br_label:
+                    if cls == find_common_ancestor(cls, cls_name):
+                        br_label_map[cls_name] = br_label_map[cls]
+                        break
+
+        for idx,cls_name in enumerate(sorted(class_map.keys())):
+            if cls_name in br_label_map.keys():
+                ret += str(MOV("q", "$%d" % class_tag[cls_name], temp_reg))+"\n"
+                ret += str(CMP("q", temp_reg, acc_reg)) + "\n"
+                ret += str(JE("l%d" % br_label_map[cls_name])) + "\n"
+            else: 
+                ret += str(MOV("q", "$%d" % class_tag[cls_name], temp_reg))+"\n"
+                ret += str(CMP("q", temp_reg, acc_reg)) + "\n"
+                ret += str(JE("l%d" % error_case_label)) + "\n"
+
+        # cgen for every branch
+        # for error case
+        ret += ".globl l%d\n" % error_case_label
+        ret += "{: <24}".format("l%d:" % error_case_label)
+        ret += "## case expresion: error case\n"
+
+        string_key = "string%d" % (len(string_map) + 1)
+        string_val = "ERROR: %s: Exception: case without matching branch\\n"\
+                % exp.line_num
+        if string_val in string_map.values():
+            string_key = [key for key,val in string_map.iteritems() if val ==
+                            string_val][0] 
+        else:
+            string_map[string_key] = string_val
+
+        ret += str(MOV("q", "$%s" % string_key, acc_reg)) + "\n"
+        ret += str(MOV("q", acc_reg, rdi)) + "\n"
+        ret += str(CALL("cooloutstr")) + "\n"
+        ret += str(MOV("l", "$0", edi)) + "\n"
+        ret += str(CALL("exit")) + "\n"
+
+        # for void case
+        ret += ".globl l%d\n" % br_label_map["void"]
+        ret += "{: <24}".format("l%d:" % br_label_map["void"])
+        ret += "## case expresion: void case\n"
+
+        string_key = "string%d" % (len(string_map) + 1)
+        string_val = "ERROR: %s: Exception: case on void\\n"\
+                % exp.line_num
+        if string_val in string_map.values():
+            string_key = [key for key,val in string_map.iteritems() if val ==
+                            string_val][0] 
+        else:
+            string_map[string_key] = string_val
+
+        ret += str(MOV("q", "$%s" % string_key, acc_reg)) + "\n"
+        ret += str(MOV("q", acc_reg, rdi)) + "\n"
+        ret += str(CALL("cooloutstr")) + "\n"
+        ret += str(MOV("l", "$0", edi)) + "\n"
+        ret += str(CALL("exit")) + "\n"
+
+        # cgen for branch in case exp!!!
+        ret += tab_6 + "## case expression: branches\n"
+        
+        for idx, case_ele in enumerate(exp.element_list):
+            ret += ".globl l%d\n" % br_label_map[case_ele.type_ident.ident]
+            ret += "{: <24}".format("l%d" % \
+                    br_label_map[case_ele.type_ident.ident]) 
+            ret += "## fp[%d] holds case %s (%s)" % (0-len(ocuppied_temp),
+                    case_ele.var_ident.ident, case_ele.type_ident.ident) + "\n"
+            free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
+            ocuppied_temp.append(free_temp_mem)
+            ret += cgen(case_ele.body_exp)
+            ocuppied_temp.pop()
+            ret += str(JMP("l%d" % case_end_label)) + "\n"
+
+        ret += ".globl l%d\n" % case_end_label 
+        ret += "{: <24}".format("l%d:" % case_end_label) + "## case expression ends\n"
+        return ret
+
 def main():
     global class_map
     global imp_map
@@ -348,6 +484,9 @@ def main():
 
     # produce vtable
     for idx,(cls_name,method_list) in enumerate(sorted(imp_map.items())):
+        # Produce class tags
+        class_tag[cls_name] = idx
+
         ret = tab_6 + split + "\n"
         ret += ".globl %s..vtable\n" % cls_name
         ret += "{: <24}".format("%s..vtable:" % cls_name) + \
@@ -393,7 +532,7 @@ def main():
 
         # store class tag, object size and vtable pointer
         ret += tab_6 + "## store class tag, object size and vtable pointer\n"
-        ret += str(MOV("q", "$%d" % (idx),temp_reg)) + "\n"
+        ret += str(MOV("q", "$%d" % (class_tag[cls_name]),temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(0,self_reg))) + "\n"
         ret += str(MOV("q", "$%d" % (num_attr + 3), temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(8,self_reg))) + "\n"
