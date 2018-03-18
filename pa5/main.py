@@ -35,6 +35,8 @@ label = 0
 #string_map = {"the.empty.string":"", "percent.d":"%ld", "percent.ld":" %ld"}
 string_map = {}
 symbol_table = {}
+ocuppied_temp = []
+
 
 def attr2asm(cls_name, attributes):
     global class_map
@@ -53,7 +55,7 @@ def attr2asm(cls_name, attributes):
         symbol_table[attr.attr_name.ident] = [str(MEM(24 + 8*i, self_reg))]
         ret += tab_6 +  "## self[%d] holds field %s (%s)\n" % (i+3,
                 attr.attr_name.ident, attr.attr_type.ident)
-        if attr.attr_type.ident != "SELF_TYPE":
+        if attr.attr_type.ident not in ["SELF_TYPE","Object", "IO"]:
             ret += tab_6 + "## new %s\n" % attr.attr_type.ident
             ret += str(PUSH("q",rbp)) + "\n"
             ret += str(PUSH("q",self_reg)) + "\n"
@@ -135,40 +137,42 @@ def cgen(exp):
 
 
     if isinstance(exp, Plus):
+        free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
         ret += cgen(exp.lhs) 
 
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
-        ret += str(MOV("q", acc_reg, MEM(0, rbp))) + "\n"
+        ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
         
         ret += cgen(exp.rhs)
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
-        ret += str(MOV("q", MEM(0, rbp), temp_reg)) + "\n"
+        ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         if isinstance(exp, Plus):
             ret += str(ADD("q", temp_reg, acc_reg)) + "\n"
         else:
             # different to official compiler TODO
             ret += str(SUB("q", temp_reg, acc_reg)) + "\n"
-        ret += str(MOV("q", acc_reg, MEM(0,rbp))) + "\n"
+        ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
 
         ret += cgen(New(0,"Int",None))
         # lhs address in acc_reg
-        ret += str(MOV("q", MEM(0, rbp), temp_reg)) + "\n"
+        ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
         return ret
 
     if isinstance(exp, Minus):
+        free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
         ret += cgen(exp.lhs) 
 
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
-        ret += str(MOV("q", acc_reg, MEM(0, rbp))) + "\n"
+        ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
         
         ret += cgen(exp.rhs)
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
-        ret += str(MOV("q", MEM(0, rbp), temp_reg)) + "\n"
+        ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
 
         # Code for Minus Operation
         #                movq %r14, %rax
@@ -180,26 +184,27 @@ def cgen(exp):
         ret += str(MOV("q", rax, acc_reg)) + "\n"
 
         # store back to temporary location of MEM
-        ret += str(MOV("q", acc_reg, MEM(0,rbp))) + "\n"
+        ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
 
         ret += cgen(New(0,"Int",None))
         # lhs address in acc_reg
-        ret += str(MOV("q", MEM(0, rbp), temp_reg)) + "\n"
+        ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
         return ret
 
 
     if isinstance(exp, Times):
+        free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
         ret += cgen(exp.lhs) 
 
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
-        ret += str(MOV("q", acc_reg, MEM(0, rbp))) + "\n"
+        ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
         
         ret += cgen(exp.rhs)
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
-        ret += str(MOV("q", MEM(0, rbp), temp_reg)) + "\n\n"
+        ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n\n"
 
         # Code for Times Operation
         #movq %r14, %rax
@@ -214,20 +219,21 @@ def cgen(exp):
         ret += str(MOV("l", eax, acc_reg_d)) + "\n"
 
         # store back to temporary location of MEM
-        ret += str(MOV("q", acc_reg, MEM(0,rbp))) + "\n"
+        ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
 
         ret += cgen(New(0,"Int",None))
         # lhs address in acc_reg
-        ret += str(MOV("q", MEM(0, rbp), temp_reg)) + "\n"
+        ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
         return ret
     
     if isinstance(exp, Divide):
+        free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
         ret += cgen(exp.lhs) 
 
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
-        ret += str(MOV("q", acc_reg, MEM(0, rbp))) + "\n"
+        ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
         
         ret += cgen(exp.rhs)
         # lhs address in acc_reg
@@ -274,7 +280,7 @@ def cgen(exp):
         ret += ".globl l%d" % label + "\n"
         ret += "{: <24}".format("l%d:" % label) + "## division is OK\n"
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
-        ret += str(MOV("q", MEM(0, rbp), temp_reg)) + "\n\n"
+        ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n\n"
         ret += str(MOV("q", "$0", rdx)) + "\n"
         ret += str(MOV("q", temp_reg, rax)) + "\n"
         ret += "cdq\n"
@@ -282,11 +288,11 @@ def cgen(exp):
         ret += str(MOV("q", rax, acc_reg)) + "\n"
 
         # store back to temporary location of MEM
-        ret += str(MOV("q", acc_reg, MEM(0,rbp))) + "\n"
+        ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
 
         ret += cgen(New(0,"Int",None))
         # lhs address in acc_reg
-        ret += str(MOV("q", MEM(0, rbp), temp_reg)) + "\n"
+        ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
         return ret
 
@@ -296,9 +302,25 @@ def cgen(exp):
                     binding.var_ident.ident, binding.type_ident.ident)
             ret += cgen(binding)
             # Code for storing the binding back to stack
+            if binding.var_ident.ident in symbol_table.keys():
+                free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
+                ocuppied_temp.append(free_temp_mem)
+                symbol_table[binding.var_ident.ident].append(str(free_temp_mem))
+            else:
+                free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
+                ocuppied_temp.append(free_temp_mem)
+                symbol_table[binding.var_ident.ident] = [str(free_temp_mem)]
+
             # movq %r13, 0(%rbp)
-            ret += str(MOV("q", acc_reg, MEM(0-8*idx, rbp))) + "\n"
+            ret += str(MOV("q", acc_reg, \
+                symbol_table[binding.var_ident.ident][-1])) + "\n"
         ret += cgen(exp.exp)
+
+        for binding in exp.binding_list:
+            ocuppied_temp.pop()
+            symbol_table[binding.var_ident.ident].pop()
+            if symbol_table[binding.var_ident.ident] == []:
+                symbol_table.pop(binding.var_ident.ident)
         return ret
 
     if isinstance(exp, Binding):
