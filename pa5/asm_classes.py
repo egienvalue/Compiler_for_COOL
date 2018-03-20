@@ -201,9 +201,10 @@ class CALL(object):
     def __str__(self):
         if isinstance(self.oprand, Register): 
             ret = "call *%s" % str(self.oprand)
+            return "{: <24}".format("") + ret
         else:
             ret = "call %s" % str(self.oprand)
-        return "{: <24}".format("") + ret
+            return "\t\t\t" + ret
 
 class POP(object):
     def __init__(self, _len, _oprand):
@@ -250,4 +251,27 @@ class JNE(object):
             ret = "jne *%s" % str(self.oprand)
         else:
             ret = "jne %s" % str(self.oprand)
+        return "{: <12}".format("") + ret
+
+# Jump Not Equal
+class JE(object):
+    def __init__(self, _oprand):
+        self.oprand = _oprand
+
+    def __str__(self):
+        if isinstance(self.oprand, Register): 
+            ret = "je *%s" % str(self.oprand)
+        else:
+            ret = "je %s" % str(self.oprand)
+        return "{: <12}".format("") + ret
+
+class JMP(object):
+    def __init__(self, _oprand):
+        self.oprand = _oprand
+
+    def __str__(self):
+        if isinstance(self.oprand, Register): 
+            ret = "jmp *%s" % str(self.oprand)
+        else:
+            ret = "jmp %s" % str(self.oprand)
         return "{: <24}".format("") + ret
