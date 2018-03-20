@@ -11,6 +11,7 @@ acc_reg_d = R(13, "d")
 temp_reg_d = R(14, "d")
 
 tab_6 = "{:<24}".format("")
+tab_3 = "{:<12}".format("")
 
 rax = RAX()
 eax = EAX()
@@ -106,6 +107,9 @@ def attr2asm(cls_name, attributes):
 def cgen(exp):
     ret = ""
     global label
+    
+    if isinstance(exp, Internal):
+        return inter_cgen(exp.extra_detail)
 
     if isinstance(exp, IdentifierExp):
         ## b
@@ -116,7 +120,12 @@ def cgen(exp):
         return ret
 
     if isinstance(exp, New):
-        ret += "## new %s" % exp.exp_type + "\n"
+        ret += tab_6 + "## new %s" % exp.exp_type + "\n"
+        if exp.exp_type =="SELF_TYPE":
+
+            ret += str(PUSH("q", rbp)) + "\n"
+            ret += str(PUSH("q", self_reg)) + "\n"
+            return ret
         ret += str(PUSH("q", rbp)) + "\n"
         ret += str(PUSH("q", self_reg)) + "\n"
         ret += str(MOV("q","$%s..new" % exp.exp_type, temp_reg)) + "\n"
@@ -388,6 +397,7 @@ def cgen(exp):
         for idx,cls_name in enumerate(sorted(class_map.keys())):
             if cls_name not in fix_br_label:
                 for cls in fix_br_label:
+                # update label
                     if cls == find_common_ancestor(cls, cls_name):
                         br_label_map[cls_name] = br_label_map[cls]
                         break
@@ -462,12 +472,228 @@ def cgen(exp):
         ret += "{: <24}".format("l%d:" % case_end_label) + "## case expression ends\n"
         return ret
 
+    if isinstance(exp, Self_Dispatch):
+        ret += "## %s(...)" % exp.method_ident.ident + "\n"
+        ret += str(PUSH("q", self_reg)) + "\n"
+        ret += str(PUSH("q", rbp)) + "\n"
+        for idx, arg in enumerate(exp.args):
+            ret += cgen(arg)
+            ret += str(PUSH("q", acc_reg)) + "\n"
+            ret += str(PUSH("q", self_reg)) + "\n"
+        ret += tab_6 + "## obtain vtable for self object of type %s\n" % exp.exp_type 
+        ret += str(MOV("q", MEM(16, self_reg), temp_reg)) + "\n"
+        return ret
+
+    if isinstance(exp, Block):
+        for block_exp in exp.exp_list:
+            ret += cgen(block_exp)
+        return ret
+
+def inter_cgen(method_str):
+    ret = ""
+    global label
+    global tab_6
+    global tab_3
+    global string_map
+    if method_str == "IO.in_int":
+        ret += tab_6 + "## new Int\n"
+        ret += tab_6 + "pushq %rbp\n"
+        ret += tab_6 + "pushq %r12\n"
+        ret += tab_6 + "movq $Int..new, %r14\n"
+        ret += tab_6 + "call *%r14\n"
+        ret += tab_6 + "popq %r12\n"
+        ret += tab_6 + "popq %rbp\n"
+        ret += tab_6 + "movq %r13, %r14\n"
+        ret += tab_6 + "movl	$1, %esi\n"
+        ret += tab_6 + "movl $4096, %edi\n"
+        ret += tab_3 + "call calloc\n"
+        ret += tab_6 + "pushq %rax\n"
+        ret += tab_6 + "movq %rax, %rdi\n"
+        ret += tab_6 + "movq $4096, %rsi\n"
+        ret += tab_6 + "movq stdin(%rip), %rdx\n"
+        ret += tab_3 + "call fgets\n" 
+        ret += tab_6 + "popq %rdi \n"
+        ret += tab_6 + "movl $0, %eax\n"
+        ret += tab_6 + "pushq %rax\n"
+        ret += tab_6 + "movq %rsp, %rdx\n"
+        ret += tab_6 + "movq $percent.ld, %rsi\n"
+        ret += tab_3 + "call sscanf\n"
+        ret += tab_6 + "popq %rax\n"
+        ret += tab_6 + "movq $0, %rsi \n"
+        ret += tab_6 + "cmpq $2147483647, %rax \n"
+        ret += tab_6 + "cmovg %rsi, %rax\n"
+        ret += tab_6 + "cmpq $-2147483648, %rax \n"
+        ret += tab_6 + "cmovl %rsi, %rax\n"
+        ret += tab_6 + "movq %rax, %r13\n"
+        ret += tab_6 + "movq %r13, 24(%r14)\n"
+        ret += tab_6 + "movq %r14, %r13\n"
+    elif method_str == "IO.in_string":
+        ret += tab_6 + "## new String\n"
+        ret += tab_6 + "pushq %rbp\n"
+        ret += tab_6 + "pushq %r12\n"
+        ret += tab_6 + "movq $String..new, %r14\n"
+        ret += tab_6 + "call *%r14\n"
+        ret += tab_6 + "popq %r12\n"
+        ret += tab_6 + "popq %rbp\n"
+        ret += tab_6 + "movq %r13, %r14\n"
+        ret += tab_3 + "call coolgetstr \n"
+        ret += tab_6 + "movq %rax, %r13\n"
+        ret += tab_6 + "movq %r13, 24(%r14)\n"
+        ret += tab_6 + "movq %r14, %r13\n"
+    elif method_str == "IO.out_int":
+        ret += tab_6 + "movq 24(%rbp), %r14\n"
+        ret += tab_6 + "movq 24(%r14), %r13\n"
+        ret += tab_6 + "movq $percent.d, %rdi\n"
+        ret += tab_6 + "movl %r13d, %eax\n"
+        ret += tab_6 + "cdqe\n"
+        ret += tab_6 + "movq %rax, %rsi\n"
+        ret += tab_6 + "movl $0, %eax\n"
+        ret += tab_3 + "call printf\n"
+        ret += tab_6 + "movq %r12, %r13\n"
+    elif method_str == "IO.out_string":
+        ret += tab_6 + "movq 24(%rbp), %r14\n"
+        ret += tab_6 + "movq 24(%r14), %r13\n"
+        ret += tab_6 + "movq %r13, %rdi\n"
+        ret += tab_3 + "call cooloutstr\n"
+        ret += tab_6 + "movq %r12, %r13\n"
+    elif method_str == "String.concat":
+        ret += tab_6 + "## new String\n"
+        ret += tab_6 + "pushq %rbp\n"
+        ret += tab_6 + "pushq %r12\n"
+        ret += tab_6 + "movq $String..new, %r14\n"
+        ret += tab_6 + "call *%r14\n"
+        ret += tab_6 + "popq %r12\n"
+        ret += tab_6 + "popq %rbp\n"
+        ret += tab_6 + "movq %r13, %r15\n"
+        ret += tab_6 + "movq 24(%rbp), %r14\n"
+        ret += tab_6 + "movq 24(%r14), %r14\n"
+        ret += tab_6 + "movq 24(%r12), %r13\n"
+        ret += tab_6 + "movq %r13, %rdi\n"
+        ret += tab_6 + "movq %r14, %rsi\n"
+        ret += tab_3 + "call coolstrcat\n"
+        ret += tab_6 + "movq %rax, %r13\n"
+        ret += tab_6 + "movq %r13, 24(%r15)\n"
+        ret += tab_6 + "movq %r15, %r13        \n"
+    elif method_str == "String.length":
+        ret += tab_6 + "## new Int\n"
+        ret += tab_6 + "pushq %rbp\n"
+        ret += tab_6 + "pushq %r12\n"
+        ret += tab_6 + "movq $Int..new, %r14\n"
+        ret += tab_6 + "call *%r14\n"
+        ret += tab_6 + "popq %r12\n"
+        ret += tab_6 + "popq %rbp\n"
+        ret += tab_6 + "movq %r13, %r14\n"
+        ret += tab_6 + "movq 24(%r12), %r13\n"
+        ret += tab_6 + "movq %r13, %rdi\n"
+        ret += tab_6 + "movl $0, %eax\n"
+        ret += tab_3 + "call coolstrlen\n"
+        ret += tab_6 + "movq %rax, %r13\n"
+        ret += tab_6 + "movq %r13, 24(%r14)\n"
+        ret += tab_6 + "movq %r14, %r13\n"
+    elif method_str == "String.substr":
+        ret += tab_6 + "## new String\n"
+        ret += tab_6 + "pushq %rbp\n"
+        ret += tab_6 + "pushq %r12\n"
+        ret += tab_6 + "movq $String..new, %r14\n"
+        ret += tab_6 + "call *%r14\n"
+        ret += tab_6 + "popq %r12\n"
+        ret += tab_6 + "popq %rbp\n"
+        ret += tab_6 + "movq %r13, %r15\n"
+        ret += tab_6 + "movq 24(%rbp), %r14\n"
+        ret += tab_6 + "movq 24(%r14), %r14\n"
+        ret += tab_6 + "movq 32(%rbp), %r13\n"
+        ret += tab_6 + "movq 24(%r13), %r13\n"
+        ret += tab_6 + "movq 24(%r12), %r12\n"
+        ret += tab_6 + "movq %r12, %rdi\n"
+        ret += tab_6 + "movq %r13, %rsi\n"
+        ret += tab_6 + "movq %r14, %rdx\n"
+        ret += tab_3 + "call coolsubstr\n"
+        ret += tab_6 + "movq %rax, %r13\n"
+        ret += tab_6 + "cmpq $0, %r13\n"
+        # update label
+        label += 1
+        ret += tab_6 + "jne l%d\n" % label
+
+        # update string
+        string_key = "string%d" % (len(string_map) + 1)
+        string_val = "ERROR: 0: Exception: String.substr out of range\\n"
+        if string_val in string_map.values():
+            string_key = [key for key,val in string_map.iteritems() if val ==
+                            string_val][0] 
+        else:
+            string_map[string_key] = string_val
+        ret += tab_6 + "movq $%s, %%r13\n" % string_key
+
+        ret += tab_6 + "movq %r13, %rdi\n"
+        ret += tab_3 + "call cooloutstr\n"
+        ret += tab_6 + "movl $0, %edi\n"
+        ret += tab_3 + "call exit\n"
+        ret += ".globl l%d\n" % label
+        ret += "{: <24}".format("l%d:" % label)
+        ret += "movq %r13, 24(%r15)\n"
+        ret += tab_6 + "movq %r15, %r13\n"
+
+    elif method_str == "Object.abort":
+        string_key = "string%d" % (len(string_map) + 1)
+        string_val = "abort\\n"
+        if string_val in string_map.values():
+            string_key = [key for key,val in string_map.iteritems() if val ==
+                            string_val][0] 
+        else:
+            string_map[string_key] = string_val
+        ret += tab_6 + "movq $%s, %%r13\n" % string_key
+        ret += tab_6 + "movq %r13, %rdi\n"
+        ret += tab_3 + "call cooloutstr\n"
+        ret += tab_6 + "movl $0, %edi\n"
+        ret += tab_3 + "call exit\n"
+
+    elif method_str == "Object.copy":
+        ret += "                        movq 8(%r12), %r14\n"
+        ret += "                        movq $8, %rsi\n"
+        ret += "			movq %r14, %rdi\n"
+        ret += "			call calloc\n"
+        ret += "			movq %rax, %r13\n"
+        ret += "                        pushq %r13\n"
+        label = label + 1
+        label1 = label
+        label = label + 1
+        label2 = label
+        ret += ".globl l%d\n" % label1
+        ret += "l%d:                    cmpq $0, %%r14\n" % label1
+        ret += "			je l%d\n" % label2
+        ret += "                        movq 0(%r12), %r15\n"
+        ret += "                        movq %r15, 0(%r13)\n"
+        ret += "                        movq $8, %r15\n"
+        ret += "                        addq %r15, %r12\n"
+        ret += "                        addq %r15, %r13\n"
+        ret += "                        movq $1, %r15\n"
+        ret += "                        subq %r15, %r14\n"
+        ret += "                        jmp l%d\n" % label1 
+        ret += ".globl l%d\n" % label2
+        ret += "l%d:                    ## done with Object.copy loop\n" % label2
+        ret += "                        popq %r13\n"
+    elif method_str == "Object.type_name":
+        ret += tab_6 + "## new String\n"
+        ret += tab_6 + "pushq %rbp\n"
+        ret += tab_6 + "pushq %r12\n"
+        ret += tab_6 + "movq $String..new, %r14\n"
+        ret += tab_6 + "call *%r14\n"
+        ret += tab_6 + "popq %r12\n"
+        ret += tab_6 + "popq %rbp\n"
+        ret += tab_6 + "## obtain vtable for self object\n"
+        ret += tab_6 + "movq 16(%r12), %r14\n"
+        ret += tab_6 + "## look up type name at offset 0 in vtable\n"
+        ret += tab_6 + "movq 0(%r14), %r14\n"
+        ret += tab_6 + "movq %r14, 24(%r13)\n"
+    return ret
+
+
 def main():
     global class_map
     global imp_map
     global parent_map
     global aast
-
+    global symbol_table
     #tab_6 = "                        "
     
     tab_6 = "{:<24}".format("")
@@ -541,6 +767,7 @@ def main():
         
         # call function to print attribute
         if cls_name not in  ["String", "Int", "Bool"]:
+            symbol_table = {}
             ret += attr2asm(cls_name,attributes)
         else:
             ### self[3] holds field (raw content) (Int)
@@ -576,7 +803,77 @@ def main():
         ret += tab_6 + "ret\n"
 
         fout.write(ret)
-   
+  
+    # produce method definition
+
+    # check duplicate in method definition
+    printed_list = []
+    for i,(cls_name,method_list) in enumerate(sorted(imp_map.items())):
+        # initialize symbol table
+        symbol_table = {}
+        for j, attr in enumerate(class_map[cls_name]):
+            symbol_table[attr.attr_name.ident] = [str(MEM(24 + 8*j,
+                    self_reg))]
+
+        for method_t in method_list:
+            method_cls = method_t[0]
+            method_name = method_t[1].method_name.ident
+            method_str = "%s.%s" % (method_cls, method_name)
+            if method_str in printed_list:
+                continue
+            ret = tab_6 + split + "\n" 
+            ret += ".globl %s.%s\n" % (method_cls, method_name)
+            ret += "{: <24}".format("%s.%s:" % (method_cls, method_name))
+            ret += "## method definition\n"
+            ret += str(PUSH("q", rbp)) + "\n"
+            ret += str(MOV("q", rsp, rbp)) + "\n"
+            ret += str(MOV("q", MEM(16, rbp), self_reg)) + "\n"
+            num_temp = 1
+            # number of temporaries need to be determined FIXME
+            ret += tab_6 + "## stack room for temporaries: %d\n" % num_temp
+            ret += str(MOV("q", "$%d" % 8 * num_temp, temp_reg)) + "\n"
+            ret += str(SUB("q", temp_reg, rsp)) + "\n"
+            
+            ret += tab_6 + "## return address handling\n"
+            # traverse class map and print all attrbutes
+            for j, attr in enumerate(class_map[cls_name]):
+                ret += tab_6 + "## self[%d] holds field %s (%s)\n" % (j+3, attr.attr_name.ident, attr.attr_type.ident)
+            
+            num_formal = len(method_t[1].formals)
+            for j, formal in enumerate(method_t[1].formals):
+                ## fp[3] holds argument m (Int)
+                ret += tab_6 + "## fp[%d] holds argument %s (%s)\n" % (2+num_formal-j, formal.formal_name.ident, formal.formal_type.ident)
+                if formal.formal_name.ident in symbol_table.keys():
+                    symbol_table[formal.formal_name.ident].append(str(MEM(16 +
+                    8*(num_formal-j), rbp)))
+                else:
+                    symbol_table[formal.formal_name.ident] = [str(MEM(16 +
+                    8*(num_formal-j), rbp))]
+
+
+            ret += tab_6 + "## method body begins\n"
+            ret += cgen(method_t[1].body_exp) 
+            ret += ".globl %s.end\n" % method_str 
+
+            ret += "{: <24}".format("%s.end:" % method_str) 
+            ret += "## method body ends\n"
+            ret += tab_6 + "## return address handling\n"
+
+            ret += str(MOV("q", rbp, rsp)) + "\n"
+            ret += str(POP("q", rbp)) + "\n"
+            ret += tab_6 + "ret\n"
+
+            printed_list.append(method_str)
+
+            # pop out symbol table
+            for j, formal in enumerate(method_t[1].formals):
+                symbol_table[formal.formal_name.ident].pop()
+                if symbol_table[formal.formal_name.ident] == []:
+                    symbol_table.pop(formal.formal_name.ident)
+            
+            fout.write(ret) 
+
+
     #print string_map
     exit()
         
