@@ -80,7 +80,7 @@ def attr2asm(cls_name, attributes):
         symbol_table[attr.attr_name.ident] = [str(MEM(24 + 8*i, self_reg))]
         ret += tab_6 +  "## self[%d] holds field %s (%s)\n" % (i+3,
                 attr.attr_name.ident, attr.attr_type.ident)
-        if attr.attr_type.ident not in ["SELF_TYPE","Object","IO"]:
+        if attr.exp != None or attr.attr_type.ident in ["String", "Int", "Bool"]:#not in ["SELF_TYPE","Object","IO"]:
             ret += tab_6 + "## new %s\n" % attr.attr_type.ident
             ret += str(PUSH("q",rbp)) + "\n"
             ret += str(PUSH("q",self_reg)) + "\n"
@@ -97,21 +97,22 @@ def attr2asm(cls_name, attributes):
         if attr.exp != None:
             ret+= tab_6 + "## self[%d] %s initializer <- %s\n" % \
                 (i+3,attr.attr_name.ident,str(attr.exp.exp_type))  
-            ret += cgen(attr.exp) 
+            ret += cgen(cls_name,attr.exp) 
             ret += str(MOV("q", acc_reg, MEM(24+8*i, self_reg))) + "\n"
         else:
             ret+= tab_6 + "## self[%d] %s initializer -- none " % \
                     (i+3, attr.attr_name.ident) + "\n"
     return ret
 
-def cgen(exp):
+def cgen(cur_cls,exp):
     ret = ""
     global label
+    global vtable_map
     
     if isinstance(exp, Internal):
         return inter_cgen(exp.extra_detail)
 
-    if isinstance(exp, IdentifierExp):
+    elif isinstance(exp, IdentifierExp):
         ## b
         #                movq 32(%r12), %r13
         variable_name = exp.ident.ident
@@ -119,12 +120,18 @@ def cgen(exp):
         ret += str(MOV("q", symbol_table[variable_name][-1], acc_reg)) + "\n"
         return ret
 
-    if isinstance(exp, New):
+    elif isinstance(exp, New):
         ret += tab_6 + "## new %s" % exp.exp_type + "\n"
         if exp.exp_type =="SELF_TYPE":
-
             ret += str(PUSH("q", rbp)) + "\n"
             ret += str(PUSH("q", self_reg)) + "\n"
+            ret += tab_6 + "## obtain vtable for self object\n"
+            ret += str(MOV("q", MEM(16, self_reg), temp_reg)) + "\n"
+            ret += tab_6 + "## look up constructor at offset 1 in vtable\n"
+            ret += str(MOV("q", MEM(8,temp_reg), temp_reg)) + "\n"
+            ret += str(CALL(temp_reg)) + "\n"
+            ret += str(POP("q", self_reg)) + "\n"
+            ret += str(POP("q", rbp)) + "\n"
             return ret
         ret += str(PUSH("q", rbp)) + "\n"
         ret += str(PUSH("q", self_reg)) + "\n"
@@ -134,17 +141,15 @@ def cgen(exp):
         ret += str(POP("q", rbp)) + "\n"
         return ret
 
-    if isinstance(exp, (TrueExp, FalseExp)):
-        ret += cgen(New(0, "Bool", None))
+    elif isinstance(exp, (TrueExp, FalseExp)):
+        ret += cgen(cur_cls,New(0, "Bool", None))
         if isinstance(exp, TrueExp):
             ret += str(MOV("q", "$1", temp_reg)) + "\n"
-        else: 
-            ret += str(MOV("q", "$0", temp_reg)) + "\n"
-        ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
+            ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
         return ret
  
-    if isinstance(exp, String):
-        ret += cgen(New(0,"String",None)) 
+    elif isinstance(exp, String):
+        ret += cgen(cur_cls,New(0,"String",None)) 
         # Creat space store new string
         ## string10 holds "hello world"
         #                movq $string10, %r14
@@ -161,23 +166,23 @@ def cgen(exp):
         ret += str(MOV("q", temp_reg, MEM(24, acc_reg))) + "\n"
         return ret
 
-    if isinstance(exp, Integer): 
+    elif isinstance(exp, Integer): 
 
-        ret += cgen(New(0,"Int",None))
+        ret += cgen(cur_cls,New(0,"Int",None))
         ret += str(MOV("q", "$%d" % exp.int_val, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
         return ret
 
 
-    if isinstance(exp, Plus):
+    elif isinstance(exp, Plus):
         free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
-        ret += cgen(exp.lhs) 
+        ret += cgen(cur_cls,exp.lhs) 
 
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
         
-        ret += cgen(exp.rhs)
+        ret += cgen(cur_cls,exp.rhs)
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
@@ -188,21 +193,21 @@ def cgen(exp):
             ret += str(SUB("q", temp_reg, acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
 
-        ret += cgen(New(0,"Int",None))
+        ret += cgen(cur_cls,New(0,"Int",None))
         # lhs address in acc_reg
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
         return ret
 
-    if isinstance(exp, Minus):
+    elif isinstance(exp, Minus):
         free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
-        ret += cgen(exp.lhs) 
+        ret += cgen(cur_cls,exp.lhs) 
 
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
         
-        ret += cgen(exp.rhs)
+        ret += cgen(cur_cls,exp.rhs)
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
@@ -219,22 +224,22 @@ def cgen(exp):
         # store back to temporary location of MEM
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
 
-        ret += cgen(New(0,"Int",None))
+        ret += cgen(cur_cls,New(0,"Int",None))
         # lhs address in acc_reg
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
         return ret
 
 
-    if isinstance(exp, Times):
+    elif isinstance(exp, Times):
         free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
-        ret += cgen(exp.lhs) 
+        ret += cgen(cur_cls,exp.lhs) 
 
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
         
-        ret += cgen(exp.rhs)
+        ret += cgen(cur_cls,exp.rhs)
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n\n"
@@ -254,42 +259,25 @@ def cgen(exp):
         # store back to temporary location of MEM
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
 
-        ret += cgen(New(0,"Int",None))
+        ret += cgen(cur_cls,New(0,"Int",None))
         # lhs address in acc_reg
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
         return ret
     
-    if isinstance(exp, Divide):
+    elif isinstance(exp, Divide):
         free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
-        ret += cgen(exp.lhs) 
+        ret += cgen(cur_cls,exp.lhs) 
 
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
         
-        ret += cgen(exp.rhs)
+        ret += cgen(cur_cls,exp.rhs)
         # lhs address in acc_reg
 
         # Code for Divide Operation:
-        #movq 24(%r13), %r14
-        #                        cmpq $0, %r14
-        #			jne l1
-        #                        movq $string8, %r13
-        #                        movq %r13, %rdi
-        #			call cooloutstr
-        #                        movl $0, %edi
-        #			call exit
-        #.globl l1
-        #l1:                     ## division is OK
-        #                        movq 24(%r13), %r13
-        #                        movq 0(%rbp), %r14
-        #                        
-        #movq $0, %rdx
-        #movq %r14, %rax
-        #cdq 
-        #idivl %r13d
-        #movq %rax, %r13
+
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), temp_reg)) + "\n"
         ret += str(CMP("q", "$0", temp_reg)) + "\n"
         label = label +1
@@ -323,17 +311,17 @@ def cgen(exp):
         # store back to temporary location of MEM
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
 
-        ret += cgen(New(0,"Int",None))
+        ret += cgen(cur_cls,New(0,"Int",None))
         # lhs address in acc_reg
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
         return ret
 
-    if isinstance(exp, Let):
+    elif isinstance(exp, Let):
         for idx, binding in enumerate(exp.binding_list):
             ret += tab_6 + "## fp[%d] holds local %s (%s)\n" % (-idx,
                     binding.var_ident.ident, binding.type_ident.ident)
-            ret += cgen(binding)
+            ret += cgen(cur_cls,binding)
             # Code for storing the binding back to stack
             if binding.var_ident.ident in symbol_table.keys():
                 free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
@@ -347,7 +335,7 @@ def cgen(exp):
             # movq %r13, 0(%rbp)
             ret += str(MOV("q", acc_reg, \
                 symbol_table[binding.var_ident.ident][-1])) + "\n"
-        ret += cgen(exp.exp)
+        ret += cgen(cur_cls,exp.exp)
 
         for binding in exp.binding_list:
             ocuppied_temp.pop()
@@ -356,16 +344,16 @@ def cgen(exp):
                 symbol_table.pop(binding.var_ident.ident)
         return ret
 
-    if isinstance(exp, Binding):
-        ret += cgen(exp.value_exp)
+    elif isinstance(exp, Binding):
+        ret += cgen(cur_cls,exp.value_exp)
         return ret
 
-    if isinstance(exp, Case):
+    elif isinstance(exp, Case):
         free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
 
         br_label_map = {}
         ret += tab_6 + "## case expression begins\n"
-        ret += cgen(exp.exp)
+        ret += cgen(cur_cls,exp.exp)
 
         # detect void case
         ret += str(CMP("q", "$0", acc_reg))+ "\n"
@@ -458,13 +446,13 @@ def cgen(exp):
         
         for idx, case_ele in enumerate(exp.element_list):
             ret += ".globl l%d\n" % br_label_map[case_ele.type_ident.ident]
-            ret += "{: <24}".format("l%d" % \
+            ret += "{: <24}".format("l%d:" % \
                     br_label_map[case_ele.type_ident.ident]) 
             ret += "## fp[%d] holds case %s (%s)" % (0-len(ocuppied_temp),
                     case_ele.var_ident.ident, case_ele.type_ident.ident) + "\n"
             free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
             ocuppied_temp.append(free_temp_mem)
-            ret += cgen(case_ele.body_exp)
+            ret += cgen(cur_cls,case_ele.body_exp)
             ocuppied_temp.pop()
             ret += str(JMP("l%d" % case_end_label)) + "\n"
 
@@ -472,22 +460,259 @@ def cgen(exp):
         ret += "{: <24}".format("l%d:" % case_end_label) + "## case expression ends\n"
         return ret
 
-    if isinstance(exp, Self_Dispatch):
-        ret += "## %s(...)" % exp.method_ident.ident + "\n"
+    elif isinstance(exp, Self_Dispatch):
+        ret += tab_6 + "## %s(...)" % exp.method_ident.ident + "\n"
         ret += str(PUSH("q", self_reg)) + "\n"
         ret += str(PUSH("q", rbp)) + "\n"
         for idx, arg in enumerate(exp.args):
-            ret += cgen(arg)
+            ret += cgen(cur_cls,arg)
             ret += str(PUSH("q", acc_reg)) + "\n"
-            ret += str(PUSH("q", self_reg)) + "\n"
+        ret += str(PUSH("q", self_reg)) + "\n"
+
         ret += tab_6 + "## obtain vtable for self object of type %s\n" % exp.exp_type 
         ret += str(MOV("q", MEM(16, self_reg), temp_reg)) + "\n"
+        vtable_offset = [idx for idx,method_name in
+                enumerate(vtable_map[cur_cls]) if method_name.split('.')[1] ==
+                exp.method_ident.ident]
+        #print cur_cls
+        #print exp.method_ident.ident
+        vtable_offset = vtable_offset[0]+2
+        ret += tab_6 + "## look up %s() at offset %d in vtable\n" % (exp.method_ident.ident, vtable_offset)   
+        ret += str(MOV("q", MEM(vtable_offset*8, temp_reg), temp_reg)) + "\n"
+        ret += str(CALL(temp_reg)) + "\n"
+        ret += str(ADD("q", "$%d" % ((len(exp.args)+1)*8), rsp)) + "\n"
+        ret += str(POP("q", rbp)) + "\n"
+        ret += str(POP("q", self_reg)) + "\n"
         return ret
 
-    if isinstance(exp, Block):
-        for block_exp in exp.exp_list:
-            ret += cgen(block_exp)
+    elif isinstance(exp, Static_Dispatch):
+        ret += "## %s(...)" % exp.method_ident.ident + "\n"
+        #save self and rbp register
+        ret += str(PUSH("q", self_reg)) + "\n"
+        ret += str(PUSH("q", rbp)) + "\n"
+
+        # cgen for arguments
+        for idx, arg in enumerate(exp.args):
+            ret += cgen(cur_cls,arg)
+            ret += str(PUSH("q", acc_reg)) + "\n"
+
+        # cgen for expression before .
+        ret += cgen(cur_cls, exp.exp)
+        # Dectect dispatch on void
+        ret += str(CMP("q", "$0", acc_reg)) + "\n"
+        label += 1
+        ret += str(JNE("l%d" % label)) + "\n"
+        # Allocation new string to store exceptions
+        string_key = "string%d" % (len(string_map) + 1)
+        string_val = "ERROR: %s: Exception: dispatch on void\\n" % exp.line_num
+        if string_val in string_map.values():
+            string_key = [key for key,val in string_map.iteritems() if val ==
+                            string_val][0] 
+        else:
+            string_map[string_key] = string_val
+        ret += str(MOV("q", "$%s" % string_key, acc_reg)) + "\n"
+        ret += str(MOV("q", acc_reg, rdi)) + "\n"
+        ret += str(CALL("cooloutstr")) + "\n"
+        ret += str(MOV("l", "$0", edi)) + "\n"
+        ret += str(CALL("exit")) + "\n"
+
+        # if no dispatch on void jump to
+        ret += ".globl l%d\n" % label
+        ret += "{: <24}".format("l%d:" % label) 
+        ret += str(PUSH("q", acc_reg)) + "\n"
+
+        ret += tab_6 + "## obtain vtable for class %s\n" % exp.type_ident.ident
+        ret += str(MOV("q", "$%s..vtable" % exp.type_ident.ident, temp_reg)) + "\n"
+        vtable_offset = [idx for idx,method_name in
+                enumerate(vtable_map[exp.type_ident.ident]) if method_name.split('.')[1] ==
+                exp.method_ident.ident]
+        #print cur_cls
+        #print exp.method_ident.ident
+        vtable_offset = vtable_offset[0]+2
+        ret += tab_6 + "## look up %s() at offset %d in vtable\n" % (exp.method_ident.ident, vtable_offset)   
+        ret += str(MOV("q", MEM(vtable_offset*8, temp_reg), temp_reg)) + "\n"
+        ret += str(CALL(temp_reg)) + "\n"
+        ret += str(ADD("q", "$%d" % ((len(exp.args)+1)*8), rsp)) + "\n"
+        ret += str(POP("q", rbp)) + "\n"
+        ret += str(POP("q", self_reg)) + "\n"
         return ret
+
+
+    elif isinstance(exp, Dynamic_Dispatch):
+        ret += "## %s(...)" % exp.method_ident.ident + "\n"
+        #save self and rbp register
+        ret += str(PUSH("q", self_reg)) + "\n"
+        ret += str(PUSH("q", rbp)) + "\n"
+
+        # cgen for arguments
+        for idx, arg in enumerate(exp.args):
+            ret += cgen(cur_cls,arg)
+            ret += str(PUSH("q", acc_reg)) + "\n"
+
+        # cgen for expression before .
+        ret += cgen(cur_cls, exp.exp)
+        # Dectect dispatch on void
+        ret += str(CMP("q", "$0", acc_reg)) + "\n"
+        label += 1
+        ret += str(JNE("l%d" % label)) + "\n"
+        # Allocation new string to store exceptions
+        string_key = "string%d" % (len(string_map) + 1)
+        string_val = "ERROR: %s: Exception: dispatch on void\\n" % exp.line_num
+        if string_val in string_map.values():
+            string_key = [key for key,val in string_map.iteritems() if val ==
+                            string_val][0] 
+        else:
+            string_map[string_key] = string_val
+        ret += str(MOV("q", "$%s" % string_key, acc_reg)) + "\n"
+        ret += str(MOV("q", acc_reg, rdi)) + "\n"
+        ret += str(CALL("cooloutstr")) + "\n"
+        ret += str(MOV("l", "$0", edi)) + "\n"
+        ret += str(CALL("exit")) + "\n"
+
+        # if no dispatch on void jump to
+        ret += ".globl l%d\n" % label
+        ret += "{: <24}".format("l%d:" % label) 
+        ret += str(PUSH("q", acc_reg)) + "\n"
+
+        ret += tab_6 + "## obtain vtable from object in r1 with static type %s\n" % exp.exp.exp_type
+        ret += str(MOV("q", MEM(16, acc_reg), temp_reg)) + "\n"
+        vtable_offset = [idx for idx,method_name in
+                enumerate(vtable_map[exp.exp.exp_type]) if method_name.split('.')[1] ==
+                exp.method_ident.ident]
+        #print cur_cls
+        #print exp.method_ident.ident
+        vtable_offset = vtable_offset[0]+2
+        ret += tab_6 + "## look up %s() at offset %d in vtable\n" % (exp.method_ident.ident, vtable_offset)   
+        ret += str(MOV("q", MEM(vtable_offset*8, temp_reg), temp_reg)) + "\n"
+        ret += str(CALL(temp_reg)) + "\n"
+        ret += str(ADD("q", "$%d" % ((len(exp.args)+1)*8), rsp)) + "\n"
+        ret += str(POP("q", rbp)) + "\n"
+        ret += str(POP("q", self_reg)) + "\n"
+        return ret
+
+    elif isinstance(exp, Block):
+        for block_exp in exp.exp_list:
+            ret += cgen(cur_cls,block_exp)
+        return ret
+
+    elif isinstance(exp, Lt):
+        ret += str(PUSH("q", self_reg)) + "\n"
+        ret += str(PUSH("q", rbp)) + "\n"
+
+        # Cgen lhs and store into stack
+        ret += cgen(cur_cls, exp.lhs)
+        ret += str(PUSH("q", acc_reg)) + "\n"
+
+        # cgen rhs and store into stack
+        ret += cgen(cur_cls, exp.rhs)
+        ret += str(PUSH("q", acc_reg)) + "\n"
+
+        # Store self reg to stack call lt handler
+        ret += str(PUSH("q", self_reg)) + "\n"
+        ret += str(CALL("lt_handler")) + "\n"
+
+        # Free space for arguments passed into lt handler
+        ret += str(ADD("q", "$24", rsp)) + "\n"
+
+        # Store the rbp and self_reg back
+        ret += str(POP("q", rbp)) + "\n"
+        ret += str(POP("q", self_reg)) + "\n"
+        return ret
+
+    elif isinstance(exp, Le):
+        ret += str(PUSH("q", self_reg)) + "\n"
+        ret += str(PUSH("q", rbp)) + "\n"
+
+        # Cgen lhs and store into stack
+        ret += cgen(cur_cls, exp.lhs)
+        ret += str(PUSH("q", acc_reg)) + "\n"
+
+        # cgen rhs and store into stack
+        ret += cgen(cur_cls, exp.rhs)
+        ret += str(PUSH("q", acc_reg)) + "\n"
+
+        # Store self reg to stack call le handler
+        ret += str(PUSH("q", self_reg)) + "\n"
+        ret += str(CALL("le_handler")) + "\n"
+
+        # Free space for arguments passed into le handler
+        ret += str(ADD("q", "$24", rsp)) + "\n"
+
+        # Store the rbp and self_reg back
+        ret += str(POP("q", rbp)) + "\n"
+        ret += str(POP("q", self_reg)) + "\n"
+        return ret
+
+    elif isinstance(exp, Eq):
+        ret += str(PUSH("q", self_reg)) + "\n"
+        ret += str(PUSH("q", rbp)) + "\n"
+
+        # Cgen lhs and store into stack
+        ret += cgen(cur_cls, exp.lhs)
+        ret += str(PUSH("q", acc_reg)) + "\n"
+
+        # cgen rhs and store into stack
+        ret += cgen(cur_cls, exp.rhs)
+        ret += str(PUSH("q", acc_reg)) + "\n"
+
+        # Store self reg to stack call eq handler
+        ret += str(PUSH("q", self_reg)) + "\n"
+        ret += str(CALL("eq_handler")) + "\n"
+
+        # Free space for arguments passed into eq handler
+        ret += str(ADD("q", "$24", rsp)) + "\n"
+
+        # Store the rbp and self_reg back
+        ret += str(POP("q", rbp)) + "\n"
+        ret += str(POP("q", self_reg)) + "\n"
+        return ret
+
+    elif isinstance(exp, Not):
+        # cgen expression
+        ret += cgen(cur_cls, exp.exp)
+        # compare to 0
+        ret += str(MOV("q", MEM(24, acc_reg), acc_reg)) + "\n"
+        ret += str(CMP("q", "$0", acc_reg)) + "\n"
+        # allocate 3 labels
+        label += 1
+        truelabel = label
+        label += 1
+        falselabel = label
+        label += 1
+        endlabel = label
+        ret += str(JNE("l%d" % truelabel)) + "\n"
+        # false branch
+        ret += ".globl l%d\n" % falselabel
+        ret += "{: <24}".format("l%d:" % falselabel)
+        ret += "## false branch\n"
+        ret += cgen(cur_cls,New(0,"Bool",None))
+        
+        # invert the expr and return 
+        ret += str(MOV("q", "$1", temp_reg)) + "\n"
+        ret += str(MOV("q", temp_reg, MEM(24, acc_reg))) + "\n"
+        ret += str(JMP("l%d" % endlabel)) + "\n"
+
+        # true branch
+        ret += ".globl l%d\n" % truelabel
+        ret += "{: <24}".format("l%d:" % truelabel)
+        ret += "## true branch\n"
+        ret += cgen(cur_cls,New(0,"Bool",None))
+
+        # end branch
+        ret += ".globl l%d\n" % endlabel
+        ret += "{: <24}".format("l%d:" % endlabel)
+        ret += "## end of if conditional\n"
+        return ret
+
+    elif isinstance(exp, Negate):
+        ret += cgen(cur_cls, Minus(0, "Int", Integer(0, "Int", 0), Integer(0,
+            "Int", exp.exp.int_val))) 
+        return ret
+
+
+    else:
+        print("unhandled expression")
+        exit()    
 
 def inter_cgen(method_str):
     ret = ""
@@ -694,6 +919,7 @@ def main():
     global parent_map
     global aast
     global symbol_table
+    global vtable_map
     #tab_6 = "                        "
     
     tab_6 = "{:<24}".format("")
@@ -707,12 +933,12 @@ def main():
     filename = "my_" + str(sys.argv[1][:-7]) + "s"
     print filename
     fout = open(filename,"w")
-
+    vtable_map = {}
     # produce vtable
     for idx,(cls_name,method_list) in enumerate(sorted(imp_map.items())):
         # Produce class tags
         class_tag[cls_name] = idx
-
+        vtable_map[cls_name] = []
         ret = tab_6 + split + "\n"
         ret += ".globl %s..vtable\n" % cls_name
         ret += "{: <24}".format("%s..vtable:" % cls_name) + \
@@ -723,6 +949,8 @@ def main():
         string_map["string%d" % string_num] = cls_name 
         ret += tab_6 + ".quad %s..new\n" % cls_name
         for method_t in method_list:
+            vtable_map[cls_name].append("%s.%s" % (method_t[0], \
+                           method_t[1].method_name.ident)) 
             ret += tab_6 + \
                    ".quad %s.%s\n" % (method_t[0], \
                            method_t[1].method_name.ident)
@@ -852,7 +1080,7 @@ def main():
 
 
             ret += tab_6 + "## method body begins\n"
-            ret += cgen(method_t[1].body_exp) 
+            ret += cgen(cls_name,method_t[1].body_exp) 
             ret += ".globl %s.end\n" % method_str 
 
             ret += "{: <24}".format("%s.end:" % method_str) 
@@ -875,6 +1103,51 @@ def main():
 
 
     #print string_map
+    ret = tab_6 + split + "\n"
+    ret += tab_6 + "## global string constants\n"
+    # print empty string, d and ld
+    ret += ".globl the.empty.string\n"
+    ret +=  "{: <24}".format("the.empty.string:")
+    ret += "# \"\"\n"
+    ret += ".byte 0\n\n"
+    
+    ret += ".globl percent.d\n"
+    ret += "{: <24}".format("percent.d:")
+    ret += "# \"%ld\"\n"
+    ret += ".byte  37 # \'%\'\n"
+    ret += ".byte 108 # \'l\'\n"
+    ret += ".byte 100 # \'d\'\n"
+    ret += ".byte 0\n\n"
+
+    ret += ".globl percent.ld\n"
+    ret += "{: <24}".format("percent.ld:")
+    ret += "# \" %ld\"\n"
+    ret += ".byte  32 # \' \'\n"
+    ret += ".byte  37 # \'%\'\n"
+    ret += ".byte 108 # \'l\'\n"
+    ret += ".byte 100 # \'d\'\n"
+    ret += ".byte 0\n\n"
+
+    # print all strings in string_map
+    string_t_list = [(k,v) for k,v in string_map.iteritems()]
+    string_t_list = sorted(string_t_list, key=lambda x : int(x[0][6:]))
+    for (str_key, str_val) in string_t_list:
+        ret += ".globl %s\n" % str_key
+        ret +=  "{: <24}".format("%s:" % str_key)
+        ret += "# \"%s\"\n" % str_val
+        # collect all ascii code in the string
+        asc_code = [ord(c) for c in str_val]
+        for code in asc_code:
+            ret += ".byte"
+            if code == 92:
+                ret += "{:>4}".format("%s" % str(code))
+                ret += " # \'\\\\\'" + "\n"
+            else:
+                ret += "{:>4}".format("%s" % str(code))
+                ret += " # \'%s\'" % chr(code) + "\n"
+        ret += ".byte 0\n\n"
+
+    fout.write(ret)
     exit()
         
 
