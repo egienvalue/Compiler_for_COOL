@@ -349,7 +349,10 @@ def cgen(cur_cls,exp):
         return ret
 
     elif isinstance(exp, Binding):
-        ret += cgen(cur_cls,exp.value_exp)
+        if exp.value_exp == None:
+            ret += str(MOV("q", "$0", acc_reg)) + "\n"
+        else:
+            ret += cgen(cur_cls,exp.value_exp)
         return ret
 
     elif isinstance(exp, Case):
@@ -730,10 +733,110 @@ def cgen(cur_cls,exp):
             "Int", exp.exp.int_val))) 
         return ret
 
+    elif isinstance(exp, If):
+        # cgen expression
+        ret += cgen(cur_cls, exp.predicate)
+        # compare to 0
+        ret += str(MOV("q", MEM(24, acc_reg), acc_reg)) + "\n"
+        ret += str(CMP("q", "$0", acc_reg)) + "\n"
+        # allocate 3 labels
+        label += 1
+        truelabel = label
+        label += 1
+        falselabel = label
+        label += 1
+        endlabel = label
+        ret += str(JNE("l%d" % truelabel)) + "\n"
+        # false branch
+        ret += ".globl l%d\n" % falselabel
+        ret += "{: <24}".format("l%d:" % falselabel)
+        ret += "## false branch\n"
+        ret += cgen(cur_cls,exp.else_body)
+        
+        # jump to end
+        ret += str(JMP("l%d" % endlabel)) + "\n"
+
+        # true branch
+        ret += ".globl l%d\n" % truelabel
+        ret += "{: <24}".format("l%d:" % truelabel)
+        ret += "## true branch\n"
+        ret += cgen(cur_cls,exp.then_body)
+
+        # end branch
+        ret += ".globl l%d\n" % endlabel
+        ret += "{: <24}".format("l%d:" % endlabel)
+        ret += "## end of if conditional\n"
+        return ret
+    
+    elif isinstance(exp, While):
+        label += 1
+        checklabel = label
+        label += 1
+        endlabel = label
+
+        # check while condition
+        ret += ".globl l%d\n" % checklabel
+        ret += "{: <24}".format("l%d:" % checklabel)
+        ret += "## while conditional check\n"
+        ret += cgen(cur_cls, exp.predicate)
+
+        ret += str(MOV("q", MEM(24, acc_reg), acc_reg)) + "\n"
+        ret += str(CMP("q", "$0", acc_reg)) + "\n"
+        ret += str(JE("l%d" % endlabel)) + "\n"
+        
+        ret += cgen(cur_cls, exp.body)
+
+        ret += str(JMP("l%d" % checklabel)) + "\n"
+
+        # end of while loop
+        ret += ".globl l%d\n" % endlabel
+        ret += "{: <24}".format("l%d:" % endlabel)
+        ret += "## end of while loop\n"
+        return ret
+   
+    elif isinstance(exp, Isvoid):
+        ret += cgen(cur_cls, exp.exp)
+
+        # compare if void
+        ret += str(CMP("q", "$0", acc_reg)) + "\n"
+        # allocate 3 labels
+        label += 1
+        truelabel = label
+        label += 1
+        falselabel = label
+        label += 1
+        endlabel = label
+        ret += str(JE("l%d" % truelabel)) + "\n"
+        # false branch
+        ret += ".globl l%d\n" % falselabel
+        ret += "{: <24}".format("l%d:" % falselabel)
+        ret += "## false branch of isvoid\n"
+        ret += cgen(cur_cls,New(0,"Bool",None))
+        
+        # jump to end 
+        ret += str(JMP("l%d" % endlabel)) + "\n"
+
+        # true branch
+        ret += ".globl l%d\n" % truelabel
+        ret += "{: <24}".format("l%d:" % truelabel)
+        ret += "## true branch of isvoid\n"
+        ret += cgen(cur_cls,New(0,"Bool",None))
+        ret += str(MOV("q", "$1", temp_reg)) + "\n"
+        ret += str(MOV("q", temp_reg, MEM(24, acc_reg))) + "\n"
+
+        # end branch
+        ret += ".globl l%d\n" % endlabel
+        ret += "{: <24}".format("l%d:" % endlabel)
+        ret += "## end of isvoid\n"
+        return ret
 
     else:
+        #ret += str(MOV("q", "$0", acc_reg)) + "\n"
+        #return ret
+        print exp
         print("unhandled expression")
-        exit()    
+        exit()
+
 
 def inter_cgen(method_str):
     ret = ""
@@ -941,6 +1044,7 @@ def main():
     global aast
     global symbol_table
     global vtable_map
+    global methoddef
     #tab_6 = "                        "
     
     tab_6 = "{:<24}".format("")
@@ -1168,6 +1272,31 @@ def main():
         ret += ".byte 0\n\n"
 
     fout.write(ret)
+
+    # print helper function ahead of main
+    with open("methoddef.txt", "r") as f:
+        line = f.readline()
+        while line:
+            fout.write(line)
+            line = f.readline()
+
+#    # print main function
+#    ret = tab_6 + split + "\n"
+#    ret += ".globl start\n"
+#    ret +=  "{:<24}".format("start:")
+#    ret += "## program begins here\n"
+#    ret += tab_6 + "globl main\n"
+#    ret += tab_3 + ".type main, @function\n"
+#    ret += "main:\n"
+#    
+#
+#    # print helper function after main
+#    with open("methoddef2.txt", "r") as f:
+#        line = f.readline()
+#        while line:
+#            fout.write(line)
+#            line = f.readline()
+#
     exit()
         
 
