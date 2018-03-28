@@ -80,7 +80,7 @@ def attr2asm(cls_name, attributes):
         symbol_table[attr.attr_name.ident] = [str(MEM(24 + 8*i, self_reg))]
         ret += tab_6 +  "## self[%d] holds field %s (%s)\n" % (i+3,
                 attr.attr_name.ident, attr.attr_type.ident)
-        if attr.exp != None or attr.attr_type.ident in ["String", "Int", "Bool"]:#not in ["SELF_TYPE","Object","IO"]:
+        if (attr.exp != None and attr.attr_type.ident not in ["Object"]) or attr.attr_type.ident in ["String", "Int", "Bool"]:
             ret += tab_6 + "## new %s\n" % attr.attr_type.ident
             ret += str(PUSH("q",rbp)) + "\n"
             ret += str(PUSH("q",self_reg)) + "\n"
@@ -108,6 +108,7 @@ def cgen(cur_cls,exp):
     ret = ""
     global label
     global vtable_map
+    global symbol_table
     
     if isinstance(exp, Internal):
         return inter_cgen(exp.extra_detail)
@@ -116,8 +117,11 @@ def cgen(cur_cls,exp):
         ## b
         #                movq 32(%r12), %r13
         variable_name = exp.ident.ident
-        ret += tab_6 + "## %s\n" % variable_name
-        ret += str(MOV("q", symbol_table[variable_name][-1], acc_reg)) + "\n"
+        if variable_name == "self" :
+            ret +=  str(MOV("q", self_reg, acc_reg)) +"\n"
+        else:
+            ret += tab_6 + "## %s\n" % variable_name
+            ret += str(MOV("q", symbol_table[variable_name][-1], acc_reg)) + "\n"
         return ret
 
     elif isinstance(exp, New):
@@ -450,10 +454,22 @@ def cgen(cur_cls,exp):
                     br_label_map[case_ele.type_ident.ident]) 
             ret += "## fp[%d] holds case %s (%s)" % (0-len(ocuppied_temp),
                     case_ele.var_ident.ident, case_ele.type_ident.ident) + "\n"
+            
             free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
             ocuppied_temp.append(free_temp_mem)
+
+            # add it to symbol table
+            if case_ele.var_ident.ident in symbol_table.keys():
+                symbol_table[case_ele.var_ident.ident].append(str(free_temp_mem))
+            else:
+                symbol_table[case_ele.var_ident.ident] = [str(free_temp_mem)]
+
             ret += cgen(cur_cls,case_ele.body_exp)
+             
             ocuppied_temp.pop()
+            symbol_table[case_ele.var_ident.ident].pop()
+            if symbol_table[case_ele.var_ident.ident] == []:
+                symbol_table.pop(case_ele.var_ident.ident)
             ret += str(JMP("l%d" % case_end_label)) + "\n"
 
         ret += ".globl l%d\n" % case_end_label 
@@ -593,6 +609,11 @@ def cgen(cur_cls,exp):
     elif isinstance(exp, Block):
         for block_exp in exp.exp_list:
             ret += cgen(cur_cls,block_exp)
+        return ret
+    
+    elif isinstance(exp, Assign):
+        ret += cgen(cur_cls, exp.exp)
+        ret += str(MOV("q", acc_reg, symbol_table[exp.ident.ident][-1])) + "\n"
         return ret
 
     elif isinstance(exp, Lt):
@@ -1077,7 +1098,6 @@ def main():
                 else:
                     symbol_table[formal.formal_name.ident] = [str(MEM(16 +
                     8*(num_formal-j), rbp))]
-
 
             ret += tab_6 + "## method body begins\n"
             ret += cgen(cls_name,method_t[1].body_exp) 
