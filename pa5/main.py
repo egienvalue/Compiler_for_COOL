@@ -2,7 +2,7 @@ import sys
 import reader as rd
 from asm_classes import *
 from cool_classes import *
-
+from num_temp import *
 self_reg = R(12)
 acc_reg = R(13)
 temp_reg = R(14)
@@ -80,7 +80,7 @@ def attr2asm(cls_name, attributes):
         symbol_table[attr.attr_name.ident] = [str(MEM(24 + 8*i, self_reg))]
         ret += tab_6 +  "## self[%d] holds field %s (%s)\n" % (i+3,
                 attr.attr_name.ident, attr.attr_type.ident)
-        if (attr.exp != None and attr.attr_type.ident not in ["Object"]) or attr.attr_type.ident in ["String", "Int", "Bool"]:
+        if attr.attr_type.ident in ["String", "Int", "Bool"]:
             ret += tab_6 + "## new %s\n" % attr.attr_type.ident
             ret += str(PUSH("q",rbp)) + "\n"
             ret += str(PUSH("q",self_reg)) + "\n"
@@ -181,11 +181,10 @@ def cgen(cur_cls,exp):
     elif isinstance(exp, Plus):
         free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
         ret += cgen(cur_cls,exp.lhs) 
-
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
-        
+        ocuppied_temp.append(free_temp_mem)
         ret += cgen(cur_cls,exp.rhs)
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
@@ -201,6 +200,7 @@ def cgen(cur_cls,exp):
         # lhs address in acc_reg
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
+        ocuppied_temp.pop() 
         return ret
 
     elif isinstance(exp, Minus):
@@ -210,7 +210,7 @@ def cgen(cur_cls,exp):
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
-        
+        ocuppied_temp.append(free_temp_mem)
         ret += cgen(cur_cls,exp.rhs)
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
@@ -232,6 +232,7 @@ def cgen(cur_cls,exp):
         # lhs address in acc_reg
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
+        ocuppied_temp.pop()
         return ret
 
 
@@ -242,6 +243,8 @@ def cgen(cur_cls,exp):
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
+        
+        ocuppied_temp.append(free_temp_mem) 
         
         ret += cgen(cur_cls,exp.rhs)
         # lhs address in acc_reg
@@ -267,6 +270,7 @@ def cgen(cur_cls,exp):
         # lhs address in acc_reg
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
+        ocuppied_temp.pop()
         return ret
     
     elif isinstance(exp, Divide):
@@ -276,7 +280,9 @@ def cgen(cur_cls,exp):
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
-        
+       
+        ocuppied_temp.append(free_temp_mem)
+
         ret += cgen(cur_cls,exp.rhs)
         # lhs address in acc_reg
 
@@ -319,6 +325,7 @@ def cgen(cur_cls,exp):
         # lhs address in acc_reg
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
+        ocuppied_temp.pop()
         return ret
 
     elif isinstance(exp, Let):
@@ -327,13 +334,11 @@ def cgen(cur_cls,exp):
                     binding.var_ident.ident, binding.type_ident.ident)
             ret += cgen(cur_cls,binding)
             # Code for storing the binding back to stack
+            free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
+            ocuppied_temp.append(free_temp_mem)
             if binding.var_ident.ident in symbol_table.keys():
-                free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
-                ocuppied_temp.append(free_temp_mem)
                 symbol_table[binding.var_ident.ident].append(str(free_temp_mem))
             else:
-                free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
-                ocuppied_temp.append(free_temp_mem)
                 symbol_table[binding.var_ident.ident] = [str(free_temp_mem)]
 
             # movq %r13, 0(%rbp)
@@ -350,7 +355,15 @@ def cgen(cur_cls,exp):
 
     elif isinstance(exp, Binding):
         if exp.value_exp == None:
-            ret += str(MOV("q", "$0", acc_reg)) + "\n"
+            if exp.type_ident.ident in ["Bool","Int", "IO"]:
+                ret += cgen(cur_cls,New(0,exp.type_ident.ident,None))
+            elif exp.type_ident.ident in ["String"]:
+                ret += cgen(cur_cls,New(0,exp.type_ident.ident,None))
+                ret += str(MOV("q", "$the.empty.string", r15)) + "\n"
+                ret += str(MOV("q", r15, MEM(24+8*0, acc_reg))) + "\n" 
+            else:
+                ret += str(MOV("q", "$0", acc_reg)) + "\n"
+
         else:
             ret += cgen(cur_cls,exp.value_exp)
         return ret
@@ -542,8 +555,13 @@ def cgen(cur_cls,exp):
 
         ret += tab_6 + "## obtain vtable for class %s\n" % exp.type_ident.ident
         ret += str(MOV("q", "$%s..vtable" % exp.type_ident.ident, temp_reg)) + "\n"
+
+        if exp.type_ident.ident == "SELF_TYPE":
+            vtable_key = cur_cls
+        else:
+            vtable_key = exp.type_ident.ident
         vtable_offset = [idx for idx,method_name in
-                enumerate(vtable_map[exp.type_ident.ident]) if method_name.split('.')[1] ==
+                enumerate(vtable_map[vtable_key]) if method_name.split('.')[1] ==
                 exp.method_ident.ident]
         #print cur_cls
         #print exp.method_ident.ident
@@ -595,8 +613,12 @@ def cgen(cur_cls,exp):
 
         ret += tab_6 + "## obtain vtable from object in r1 with static type %s\n" % exp.exp.exp_type
         ret += str(MOV("q", MEM(16, acc_reg), temp_reg)) + "\n"
+        if exp.exp.exp_type == "SELF_TYPE":
+            vtable_key = cur_cls
+        else:
+            vtable_key = exp.exp.exp_type
         vtable_offset = [idx for idx,method_name in
-                enumerate(vtable_map[exp.exp.exp_type]) if method_name.split('.')[1] ==
+                enumerate(vtable_map[vtable_key]) if method_name.split('.')[1] ==
                 exp.method_ident.ident]
         #print cur_cls
         #print exp.method_ident.ident
@@ -833,8 +855,8 @@ def cgen(cur_cls,exp):
     else:
         #ret += str(MOV("q", "$0", acc_reg)) + "\n"
         #return ret
-        print exp
-        print("unhandled expression")
+        #print exp
+        #print("unhandled expression")
         exit()
 
 
@@ -1051,12 +1073,14 @@ def main():
     #tab_4 = "{:<12}".format("")
     tab_3 = "\t\t\t"
     split = "## ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
-    if len(sys.argv) < 2:
-        print("Specify .cl-type input file.")
-        exit()
+    #if len(sys.argv) < 2:
+    #    print("Specify .cl-type input file.")
+    #    exit()
     class_map, imp_map, parent_map, aast = rd.read_type_file(sys.argv[1])
-    filename = "my_" + str(sys.argv[1][:-7]) + "s"
-    print filename
+    #filename = "my_" + str(sys.argv[1][:-7]) + "s"
+    filename = str(sys.argv[1][:-7]) + "s"
+
+    #print filename
     fout = open(filename,"w")
     vtable_map = {}
     # produce vtable
@@ -1089,8 +1113,14 @@ def main():
                 "## constructor for %s" % cls_name + "\n"
         ret += str(PUSH("q",rbp)) + "\n"
         ret += str(MOV("q", rsp, rbp)) + "\n"
-        ret += tab_6 + "## stack room for temporaries: 1\n"
-        ret += str(MOV("q", "$8", temp_reg)) + "\n"
+        # calculate NumTemps
+        
+        numTemp = 1
+        for attr_temp in attributes :
+            numTemp = max(numTemp, numTemp_gen(attr_temp))
+        
+        ret += tab_6 + "## stack room for temporaries: %d\n" % numTemp
+        ret += str(MOV("q", "$%d" % (8 * numTemp), temp_reg)) + "\n"
         ret += str(SUB("q", temp_reg, rsp)) + "\n"
         ret += tab_6 + "## return address handling" + "\n"
         # get number of attribues
@@ -1181,10 +1211,10 @@ def main():
             ret += str(PUSH("q", rbp)) + "\n"
             ret += str(MOV("q", rsp, rbp)) + "\n"
             ret += str(MOV("q", MEM(16, rbp), self_reg)) + "\n"
-            num_temp = 1
-            # number of temporaries need to be determined FIXME
-            ret += tab_6 + "## stack room for temporaries: %d\n" % num_temp
-            ret += str(MOV("q", "$%d" % 8 * num_temp, temp_reg)) + "\n"
+            numTemp = max(numTemp_gen(method_t[1].body_exp), 1)
+            # number of temporaries need to be determined
+            ret += tab_6 + "## stack room for temporaries: %d\n" % numTemp
+            ret += str(MOV("q", "$%d" % (8 * numTemp), temp_reg)) + "\n"
             ret += str(SUB("q", temp_reg, rsp)) + "\n"
             
             ret += tab_6 + "## return address handling\n"
