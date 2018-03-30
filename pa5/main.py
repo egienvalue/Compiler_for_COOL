@@ -501,7 +501,7 @@ def cgen(cur_cls,exp):
             ret += str(PUSH("q", acc_reg)) + "\n"
         ret += str(PUSH("q", self_reg)) + "\n"
 
-        ret += tab_6 + "## obtain vtable for self object of type %s\n" % exp.exp_type 
+        ret += tab_6 + "## obtain vtable for self object of type %s\n" % cur_cls 
         ret += str(MOV("q", MEM(16, self_reg), temp_reg)) + "\n"
         vtable_offset = [idx for idx,method_name in
                 enumerate(vtable_map[cur_cls]) if method_name.split('.')[1] ==
@@ -1077,8 +1077,8 @@ def main():
     #    print("Specify .cl-type input file.")
     #    exit()
     class_map, imp_map, parent_map, aast = rd.read_type_file(sys.argv[1])
-    #filename = "my_" + str(sys.argv[1][:-7]) + "s"
-    filename = str(sys.argv[1][:-7]) + "s"
+    filename = "my_" + str(sys.argv[1][:-7]) + "s"
+    #filename = str(sys.argv[1][:-7]) + "s"
 
     #print filename
     fout = open(filename,"w")

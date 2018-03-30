@@ -1,7 +1,7 @@
 from cool_classes import *
 
 def numTemp_gen(exp) :
-    ret = 10
+    ret = 1
     if isinstance(exp, Attribute):
         if exp.initialization == True:
             ret = numTemp_gen(exp.exp)
@@ -15,14 +15,17 @@ def numTemp_gen(exp) :
 
     elif isinstance(exp, Let):
         temp_for_binding = len(exp.binding_list) 
-        temp_for_exp = numTemp_gen(exp.exp)
+        temp_for_exp = 1 + numTemp_gen(exp.exp)
         temp_list = [numTemp_gen(binding.value_exp) for binding in exp.binding_list if
             binding.initialization == True]
         if temp_list == []:
             temp_for_binding_exp = 1
         else:
             temp_for_binding_exp = max(temp_list)
-        ret = max(temp_for_exp, temp_for_binding_exp) + temp_for_binding + 1
+        #print temp_for_exp
+        #print temp_for_binding_exp
+        #print temp_for_binding
+        ret = max(temp_for_exp, temp_for_binding_exp) + temp_for_binding
         return ret
 
     elif isinstance(exp, Binding):
@@ -38,7 +41,7 @@ def numTemp_gen(exp) :
         return ret
 
     elif isinstance(exp, (Plus, Minus, Times, Divide, Le, Eq, Lt)):
-        ret = max(numTemp_gen(exp.lhs), 1+ numTemp_gen(exp.rhs))
+        ret = max(numTemp_gen(exp.lhs), 1+numTemp_gen(exp.rhs))
         return ret
 
     elif isinstance(exp, (TrueExp, FalseExp)):
@@ -58,11 +61,13 @@ def numTemp_gen(exp) :
 
     elif isinstance(exp, Block):
         numTemp_list = [numTemp_gen(expr) for expr in exp.exp_list]
+        if numTemp_list == []:
+            return ret
         ret = max(numTemp_list)
         return ret
 
     elif isinstance(exp, While):
-        ret = max(numTemp_gen(exp.predicate), numTemp_gen(exp.body))
+        ret = max(numTemp_gen(exp.predicate), 1 + numTemp_gen(exp.body))
         return ret
 
     elif isinstance(exp, Isvoid):
@@ -70,10 +75,10 @@ def numTemp_gen(exp) :
         return ret
 
     elif isinstance(exp, Not):
-        ret = numTemp_gen(exp.exp)
+        ret = 1 + numTemp_gen(exp.exp)
         return ret
     elif isinstance(exp, Negate):
-        ret = numTemp_gen(exp.exp)
+        ret = 1 + numTemp_gen(exp.exp)
         return ret
     elif isinstance(exp, Dynamic_Dispatch):
         numTemp_list = [numTemp_gen(arg) for arg in exp.args]
@@ -101,6 +106,9 @@ def numTemp_gen(exp) :
     elif isinstance(exp, Case):
         numTemp_list = [numTemp_gen(case_ele) for case_ele in exp.element_list]
         numTemp_list.append(numTemp_gen(exp.exp))
+        if numTemp_list == []:
+            ret = numTemp_gen(exp.exp)
+            return ret 
         ret = max(numTemp_list)
         return ret
 
