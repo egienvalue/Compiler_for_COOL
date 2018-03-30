@@ -1077,8 +1077,8 @@ def main():
     #    print("Specify .cl-type input file.")
     #    exit()
     class_map, imp_map, parent_map, aast = rd.read_type_file(sys.argv[1])
-    filename = "my_" + str(sys.argv[1][:-7]) + "s"
-    #filename = str(sys.argv[1][:-7]) + "s"
+    #filename = "my_" + str(sys.argv[1][:-7]) + "s"
+    filename = str(sys.argv[1][:-7]) + "s"
 
     #print filename
     fout = open(filename,"w")

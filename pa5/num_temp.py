@@ -15,7 +15,7 @@ def numTemp_gen(exp) :
 
     elif isinstance(exp, Let):
         temp_for_binding = len(exp.binding_list) 
-        temp_for_exp = 1 + numTemp_gen(exp.exp)
+        temp_for_exp = numTemp_gen(exp.exp)
         temp_list = [numTemp_gen(binding.value_exp) for binding in exp.binding_list if
             binding.initialization == True]
         if temp_list == []:
@@ -75,7 +75,7 @@ def numTemp_gen(exp) :
         return ret
 
     elif isinstance(exp, Not):
-        ret = 1 + numTemp_gen(exp.exp)
+        ret = numTemp_gen(exp.exp)
         return ret
     elif isinstance(exp, Negate):
         ret = 1 + numTemp_gen(exp.exp)
