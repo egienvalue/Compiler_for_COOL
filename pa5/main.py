@@ -37,7 +37,7 @@ label = 0
 string_map = {}
 symbol_table = {}
 ocuppied_temp = []
-class_tag = {}
+class_tag = {"Bool":0, "Int":1, "String":3}
 
 def find_common_ancestor(type1,type2):
             global parent_map
@@ -424,7 +424,7 @@ def cgen(cur_cls,exp):
         # for error case
         ret += ".globl l%d\n" % error_case_label
         ret += "{: <24}".format("l%d:" % error_case_label)
-        ret += "## case expresion: error case\n"
+        ret += "## case expression: error case\n"
 
         string_key = "string%d" % (len(string_map) + 1)
         string_val = "ERROR: %s: Exception: case without matching branch\\n"\
@@ -444,7 +444,7 @@ def cgen(cur_cls,exp):
         # for void case
         ret += ".globl l%d\n" % br_label_map["void"]
         ret += "{: <24}".format("l%d:" % br_label_map["void"])
-        ret += "## case expresion: void case\n"
+        ret += "## case expression: void case\n"
 
         string_key = "string%d" % (len(string_map) + 1)
         string_val = "ERROR: %s: Exception: case on void\\n"\
@@ -1084,9 +1084,12 @@ def main():
     fout = open(filename,"w")
     vtable_map = {}
     # produce vtable
+    count = 10
     for idx,(cls_name,method_list) in enumerate(sorted(imp_map.items())):
         # Produce class tags
-        class_tag[cls_name] = idx
+        if cls_name not in ["String", "Int", "Bool"]:
+            class_tag[cls_name] = count
+            count += 1
         vtable_map[cls_name] = []
         ret = tab_6 + split + "\n"
         ret += ".globl %s..vtable\n" % cls_name
