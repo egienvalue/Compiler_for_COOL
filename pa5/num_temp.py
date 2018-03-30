@@ -117,7 +117,7 @@ def numTemp_gen(exp) :
         return ret
 
     elif exp == None:
-        print "unhandled temp Expression"
+        #print "unhandled temp Expression"
         return ret
 
     else:

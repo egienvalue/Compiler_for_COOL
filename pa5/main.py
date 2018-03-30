@@ -330,12 +330,12 @@ def cgen(cur_cls,exp):
 
     elif isinstance(exp, Let):
         for idx, binding in enumerate(exp.binding_list):
-            ret += tab_6 + "## fp[%d] holds local %s (%s)\n" % (-idx,
+            ret += tab_6 + "## fp[%d] holds local %s (%s)\n" % (0-len(ocuppied_temp),
                     binding.var_ident.ident, binding.type_ident.ident)
-            ret += cgen(cur_cls,binding)
-            # Code for storing the binding back to stack
             free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
             ocuppied_temp.append(free_temp_mem)
+            ret += cgen(cur_cls,binding)
+            # Code for storing the binding back to stack
             if binding.var_ident.ident in symbol_table.keys():
                 symbol_table[binding.var_ident.ident].append(str(free_temp_mem))
             else:
@@ -390,7 +390,11 @@ def cgen(cur_cls,exp):
         fix_br_label = []
         for idx, case_ele in enumerate(exp.element_list):
             label += 1
-            br_label_map[case_ele.type_ident.ident] = label
+            if case_ele.type_ident.ident == "SELF_TYPE":
+                case_ele_type = cur_cls
+            else:
+                case_ele_type = case_ele.type_ident.ident
+            br_label_map[case_ele_type] = label
             fix_br_label.append(case_ele.type_ident.ident)
             ret += tab_6 + "## case %s will jump to l%d" % \
                             (case_ele.type_ident.ident, label) + "\n"
@@ -465,11 +469,15 @@ def cgen(cur_cls,exp):
         ret += tab_6 + "## case expression: branches\n"
         
         for idx, case_ele in enumerate(exp.element_list):
-            ret += ".globl l%d\n" % br_label_map[case_ele.type_ident.ident]
+            if case_ele.type_ident.ident == "SELF_TYPE":
+                case_ele_type = cur_cls
+            else:
+                case_ele_type = case_ele.type_ident.ident 
+            ret += ".globl l%d\n" % br_label_map[case_ele_type]
             ret += "{: <24}".format("l%d:" % \
-                    br_label_map[case_ele.type_ident.ident]) 
+                    br_label_map[case_ele_type]) 
             ret += "## fp[%d] holds case %s (%s)" % (0-len(ocuppied_temp),
-                    case_ele.var_ident.ident, case_ele.type_ident.ident) + "\n"
+                    case_ele.var_ident.ident, case_ele_type) + "\n"
             
             free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
             ocuppied_temp.append(free_temp_mem)
@@ -751,8 +759,36 @@ def cgen(cur_cls,exp):
         return ret
 
     elif isinstance(exp, Negate):
-        ret += cgen(cur_cls, Minus(0, "Int", Integer(0, "Int", 0), Integer(0,
-            "Int", exp.exp.int_val))) 
+        free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
+        ret += cgen(cur_cls, Integer(0, "Int", 0))
+
+        # lhs address in acc_reg
+        ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
+        ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
+        ocuppied_temp.append(free_temp_mem)
+        ret += cgen(cur_cls,exp.exp)
+        # lhs address in acc_reg
+        ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
+        ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
+
+        # Code for Minus Operation
+        #                movq %r14, %rax
+	#		subq %r13, %rax
+	#		movq %rax, %r12
+        #                movq %r13, 0(%rbp)
+        ret += str(MOV("q", temp_reg, rax)) + "\n"
+        ret += str(SUB("q", acc_reg, rax)) + "\n"
+        ret += str(MOV("q", rax, acc_reg)) + "\n"
+
+        # store back to temporary location of MEM
+        ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
+
+        ret += cgen(cur_cls,New(0,"Int",None))
+        # lhs address in acc_reg
+        ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
+        ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
+        ocuppied_temp.pop()
+
         return ret
 
     elif isinstance(exp, If):
