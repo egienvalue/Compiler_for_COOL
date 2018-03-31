@@ -383,6 +383,7 @@ def cgen(cur_cls,exp):
         # store acc_reg to temp0
 
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
+        #ocuppied_temp.append(free_temp_mem)
         # store case.exp class tag to acc reg
         ret += str(MOV("q", MEM(0, acc_reg), acc_reg)) + "\n"
 
