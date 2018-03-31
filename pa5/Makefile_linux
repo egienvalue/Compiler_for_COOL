@@ -5,7 +5,9 @@ pa5: golden reader.py cool_classes.py
 	python main.py test.cl-type
 	#diff -w my_test.s test.s > diff.output; [ $$? -eq 1 ]
 	gcc -o my_test.o my_test.s
-	gcc -o test.o test.s	
+	gcc -o test.o test.s
+	./test.o
+	./my_test.o	
 
 golden:
 	./cool --x86 test.cl
