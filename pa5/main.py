@@ -333,8 +333,8 @@ def cgen(cur_cls,exp):
             ret += tab_6 + "## fp[%d] holds local %s (%s)\n" % (0-len(ocuppied_temp),
                     binding.var_ident.ident, binding.type_ident.ident)
             free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
-            ocuppied_temp.append(free_temp_mem)
             ret += cgen(cur_cls,binding)
+            ocuppied_temp.append(free_temp_mem)
             # Code for storing the binding back to stack
             if binding.var_ident.ident in symbol_table.keys():
                 symbol_table[binding.var_ident.ident].append(str(free_temp_mem))
@@ -1113,8 +1113,8 @@ def main():
     #    print("Specify .cl-type input file.")
     #    exit()
     class_map, imp_map, parent_map, aast = rd.read_type_file(sys.argv[1])
-    #filename = "my_" + str(sys.argv[1][:-7]) + "s"
-    filename = str(sys.argv[1][:-7]) + "s"
+    filename = "my_" + str(sys.argv[1][:-7]) + "s"
+    #filename = str(sys.argv[1][:-7]) + "s"
 
     #print filename
     fout = open(filename,"w")
