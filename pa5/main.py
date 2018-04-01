@@ -1187,13 +1187,18 @@ def main():
 
         # store class tag, object size and vtable pointer
         ret += tab_6 + "## store class tag, object size and vtable pointer\n"
-        ret += str(MOV("q", "$%d" % (class_tag[cls_name]),temp_reg)) + "\n"
-        ret += str(MOV("q", temp_reg, MEM(0,self_reg))) + "\n"
-        ret += str(MOV("q", "$%d" % (num_attr + 3), temp_reg)) + "\n"
-        ret += str(MOV("q", temp_reg, MEM(8,self_reg))) + "\n"
-        ret += str(MOV("q", "$%s..vtable" % cls_name, temp_reg)) + "\n"
-        ret += str(MOV("q", temp_reg, MEM(16,self_reg))) + "\n"
-        
+        #ret += str(MOV("q", "$%d" % (class_tag[cls_name]),temp_reg)) + "\n"
+        #ret += str(MOV("q", temp_reg, MEM(0,self_reg))) + "\n"
+        #ret += str(MOV("q", "$%d" % (num_attr + 3), temp_reg)) + "\n"
+        #ret += str(MOV("q", temp_reg, MEM(8,self_reg))) + "\n"
+        #ret += str(MOV("q", "$%s..vtable" % cls_name, temp_reg)) + "\n"
+        #ret += str(MOV("q", temp_reg, MEM(16,self_reg))) + "\n"
+        ret += str(MOV("q", "$%d" % (class_tag[cls_name]), MEM(0,self_reg))) + "\n"
+        ret += str(MOV("q", "$%d" % (num_attr + 3), MEM(8,self_reg))) + "\n"
+        ret += str(MOV("q", "$%s..vtable" % cls_name, MEM(16,self_reg))) + "\n"
+
+
+
         # call function to print attribute
         if cls_name not in  ["String", "Int", "Bool"]:
             symbol_table = {}
@@ -1208,13 +1213,14 @@ def main():
             if cls_name in ["Int", "Bool"]:
                 ret += tab_6 + "## self[%d] holds field %s (%s)\n" % (0+3,
                 "(raw content)", "Int")
-                ret += str(MOV("q", "$0", acc_reg)) + "\n"
+                # Diffrent from reference compiler
+                ret += str(MOV("q", "$0", MEM(24+8*0, self_reg))) + "\n"
             else:
                 ret += tab_6 + "## self[%d] holds field %s (%s)\n" % (0+3,
                 "(raw content)", "String")
-                ret += str(MOV("q", "$the.empty.string", acc_reg)) + "\n"
+                ret += str(MOV("q", "$the.empty.string", MEM(24+8*0, self_reg))) + "\n"
             
-            ret += str(MOV("q", acc_reg, MEM(24+8*0, self_reg))) + "\n"
+            #ret += str(MOV("q", acc_reg, MEM(24+8*0, self_reg))) + "\n"
             ret+= tab_6 + "## self[%d] %s initializer -- none " % \
                     (0+3, "(raw content)") + "\n"
 
