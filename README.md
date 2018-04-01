@@ -1,6 +1,5 @@
-# EECS483
+# COOL compiler in Python
 
-Project in EECS 483
 
 - PA1 — The Rosetta Stone
 - PA2 — The Lexer
