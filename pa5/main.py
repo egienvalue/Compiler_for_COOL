@@ -221,12 +221,13 @@ def cgen(cur_cls,exp):
 	#		subq %r13, %rax
 	#		movq %rax, %r13
         #                movq %r13, 0(%rbp)
-        ret += str(MOV("q", temp_reg, rax)) + "\n"
-        ret += str(SUB("q", acc_reg, rax)) + "\n"
-        ret += str(MOV("q", rax, acc_reg)) + "\n"
+        #ret += str(MOV("q", temp_reg, rax)) + "\n"
+        #ret += str(SUB("q", acc_reg, rax)) + "\n"
+        #ret += str(MOV("q", rax, acc_reg)) + "\n"
 
+        ret += str(SUB("q", acc_reg, temp_reg)) + "\n"
         # store back to temporary location of MEM
-        ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
+        ret += str(MOV("q", temp_reg, free_temp_mem)) + "\n"
 
         ret += cgen(cur_cls,New(0,"Int",None))
         # lhs address in acc_reg
@@ -780,15 +781,17 @@ def cgen(cur_cls,exp):
 	#		subq %r13, %rax
 	#		movq %rax, %r12
         #                movq %r13, 0(%rbp)
-        ret += str(MOV("q", temp_reg, rax)) + "\n"
-        ret += str(SUB("q", acc_reg, rax)) + "\n"
-        ret += str(MOV("q", rax, acc_reg)) + "\n"
+        #ret += str(MOV("q", temp_reg, rax)) + "\n"
+        #ret += str(SUB("q", acc_reg, rax)) + "\n"
+        #ret += str(MOV("q", rax, acc_reg)) + "\n"
+
+        ret += str(SUB("q", acc_reg, temp_reg)) + "\n"
 
         # store back to temporary location of MEM
-        ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
+        ret += str(MOV("q", temp_reg, free_temp_mem)) + "\n"
 
         ret += cgen(cur_cls,New(0,"Int",None))
-        # lhs address in acc_reg
+        ## lhs address in acc_reg
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
         ocuppied_temp.pop()
