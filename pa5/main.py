@@ -261,7 +261,8 @@ def cgen(cur_cls,exp):
         ret += str(IMUL("l", acc_reg_d, eax)) + "\n"
         ret += str(SHL("q", "$32", rax)) + "\n"
         ret += str(SHR("q", "$32", rax)) + "\n"
-        ret += str(MOV("l", eax, acc_reg_d)) + "\n"
+        ret += tab_6 + "cdqe\n"
+        ret += str(MOV("q", rax, acc_reg)) + "\n"
 
         # store back to temporary location of MEM
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
@@ -893,7 +894,7 @@ def cgen(cur_cls,exp):
         #ret += str(MOV("q", "$0", acc_reg)) + "\n"
         #return ret
         #print exp
-        #print("unhandled expression")
+        print("unhandled expression")
         exit()
 
 
@@ -1114,8 +1115,8 @@ def main():
     #    print("Specify .cl-type input file.")
     #    exit()
     class_map, imp_map, parent_map, aast = rd.read_type_file(sys.argv[1])
-    filename = "my_" + str(sys.argv[1][:-7]) + "s"
-    #filename = str(sys.argv[1][:-7]) + "s"
+    #filename = "my_" + str(sys.argv[1][:-7]) + "s"
+    filename = str(sys.argv[1][:-7]) + "s"
 
     #print filename
     fout = open(filename,"w")
