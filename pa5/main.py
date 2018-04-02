@@ -3,6 +3,7 @@ import reader as rd
 from asm_classes import *
 from cool_classes import *
 from num_temp import *
+
 self_reg = R(12)
 acc_reg = R(13)
 temp_reg = R(14)
@@ -30,10 +31,11 @@ r11 = R(11)
 r15 = R(15)
 
 int_context_offset = 24
+tab_6 = "{:<24}".format("")
+tab_3 = "{:<12}".format("")
 
 # use these variables to keep tracking info
 label = 0
-#string_map = {"the.empty.string":"", "percent.d":"%ld", "percent.ld":" %ld"}
 string_map = {}
 symbol_table = {}
 ocuppied_temp = []
@@ -76,10 +78,12 @@ def attr2asm(cls_name, attributes):
     else:
         ret = ""
     for i, attr in enumerate(attributes):
+
         # insert into symbol_table
         symbol_table[attr.attr_name.ident] = [str(MEM(24 + 8*i, self_reg))]
         ret += tab_6 +  "## self[%d] holds field %s (%s)\n" % (i+3,
                 attr.attr_name.ident, attr.attr_type.ident)
+
         if attr.attr_type.ident in ["String", "Int", "Bool"]:
             ret += tab_6 + "## new %s\n" % attr.attr_type.ident
             ret += str(PUSH("q",rbp)) + "\n"
@@ -264,6 +268,8 @@ def cgen(cur_cls,exp):
         #ret += str(SHR("q", "$32", rax)) + "\n"
         #ret += tab_6 + "cdqe\n"
         #ret += str(MOV("q", rax, acc_reg)) + "\n"
+
+        # Using IMULQ not IMULL
         ret += str(IMUL("q", temp_reg, acc_reg)) + "\n"
 
 
@@ -1187,15 +1193,15 @@ def main():
 
         # store class tag, object size and vtable pointer
         ret += tab_6 + "## store class tag, object size and vtable pointer\n"
-        #ret += str(MOV("q", "$%d" % (class_tag[cls_name]),temp_reg)) + "\n"
-        #ret += str(MOV("q", temp_reg, MEM(0,self_reg))) + "\n"
-        #ret += str(MOV("q", "$%d" % (num_attr + 3), temp_reg)) + "\n"
-        #ret += str(MOV("q", temp_reg, MEM(8,self_reg))) + "\n"
-        #ret += str(MOV("q", "$%s..vtable" % cls_name, temp_reg)) + "\n"
-        #ret += str(MOV("q", temp_reg, MEM(16,self_reg))) + "\n"
-        ret += str(MOV("q", "$%d" % (class_tag[cls_name]), MEM(0,self_reg))) + "\n"
-        ret += str(MOV("q", "$%d" % (num_attr + 3), MEM(8,self_reg))) + "\n"
-        ret += str(MOV("q", "$%s..vtable" % cls_name, MEM(16,self_reg))) + "\n"
+        ret += str(MOV("q", "$%d" % (class_tag[cls_name]),temp_reg)) + "\n"
+        ret += str(MOV("q", temp_reg, MEM(0,self_reg))) + "\n"
+        ret += str(MOV("q", "$%d" % (num_attr + 3), temp_reg)) + "\n"
+        ret += str(MOV("q", temp_reg, MEM(8,self_reg))) + "\n"
+        ret += str(MOV("q", "$%s..vtable" % cls_name, temp_reg)) + "\n"
+        ret += str(MOV("q", temp_reg, MEM(16,self_reg))) + "\n"
+        #ret += str(MOV("q", "$%d" % (class_tag[cls_name]), MEM(0,self_reg))) + "\n"
+        #ret += str(MOV("q", "$%d" % (num_attr + 3), MEM(8,self_reg))) + "\n"
+        #ret += str(MOV("q", "$%s..vtable" % cls_name, MEM(16,self_reg))) + "\n"
 
 
 
