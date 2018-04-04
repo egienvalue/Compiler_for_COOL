@@ -39,17 +39,11 @@ label = 0
 string_map = {}
 str_map = {}
 int_map = {}
+bool_map = {"true" : "1", "false" : "0"}
 symbol_table = {}
 ocuppied_temp = []
 class_tag = {"Bool":0, "Int":1, "String":3}
 
-def new_int():
-    int_key = "int%d" % (len(int_map) + 1)
-    int_val = "abort\\n"
-    if int_val in int_map.values():
-        int_key = [key for key,val in int_map.iteritems() if val == int_val][0] 
-    else:
-        int_map[int_key] = int_val
 
 def find_common_ancestor(type1,type2):
             global parent_map
@@ -160,10 +154,16 @@ def cgen(cur_cls,exp):
         return ret
 
     elif isinstance(exp, (TrueExp, FalseExp)):
-        ret += cgen(cur_cls,New(0, "Bool", None))
+        
         if isinstance(exp, TrueExp):
-            ret += str(MOV("q", "$1", temp_reg)) + "\n"
-            ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
+            ret += str(MOV("q", "$true", acc_reg)) + "\n"
+        else:
+            ret += str(MOV("q", "$false", acc_reg)) + "\n"
+
+        #ret += cgen(cur_cls,New(0, "Bool", None))
+        #if isinstance(exp, TrueExp):
+        #    ret += str(MOV("q", "$1", temp_reg)) + "\n"
+        #    ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
         return ret
  
     elif isinstance(exp, String):
@@ -183,16 +183,16 @@ def cgen(cur_cls,exp):
         else:
             str_map[str_key] = str_val
 
-        #ret += str(MOV("q", "$" + str_key, acc_reg)) + "\n"
-        ret += cgen(cur_cls,New(0,"String",None)) 
-        # Creat space store new string
-        ## string10 holds "hello world"
-        #                movq $string10, %r14
-        #                movq %r14, 24(%r13)
+        ret += str(MOV("q", "$" + str_key, acc_reg)) + "\n"
+        #ret += cgen(cur_cls,New(0,"String",None)) 
+        ## Creat space store new string
+        ### string10 holds "hello world"
+        ##                movq $string10, %r14
+        ##                movq %r14, 24(%r13)
  
-        ret += tab_6 + "## %s holds \"%s\"" % (string_key, string_val) + "\n"
-        ret += str(MOV("q", "$"+string_key, temp_reg)) + "\n"
-        ret += str(MOV("q", temp_reg, MEM(24, acc_reg))) + "\n"
+        #ret += tab_6 + "## %s holds \"%s\"" % (string_key, string_val) + "\n"
+        #ret += str(MOV("q", "$"+string_key, temp_reg)) + "\n"
+        #ret += str(MOV("q", temp_reg, MEM(24, acc_reg))) + "\n"
         return ret
 
     elif isinstance(exp, Integer): 
@@ -1373,12 +1373,33 @@ def main():
     int_t_list = sorted(int_t_list, key=lambda x : int(x[0][3:]))
     for (int_key, int_val) in int_t_list:
         ret += ".globl %s\n" % int_key
-        ret += "{: <24}".format("%s:" % int_key)
+        ret += "{: <24}".format("%s:\n" % int_key)
         ret += tab_6 + ".quad 1\n"
         ret += tab_6 + ".quad 4\n"
         ret += tab_6 + ".quad Int..vtable\n"
         ret += tab_6 + ".quad %s\n" % int_val
 
+    # print all str object in str_map
+    str_t_list = [(k,v) for k,v in str_map.iteritems()]
+    str_t_list = sorted(str_t_list, key=lambda x : int(x[0][3:]))
+    for (str_key, str_val) in str_t_list:
+        ret += ".globl %s\n" % str_key
+        ret += "{: <24}".format("%s:\n" % str_key)
+        ret += tab_6 + ".quad 3\n"
+        ret += tab_6 + ".quad 4\n"
+        ret += tab_6 + ".quad String..vtable\n"
+        ret += tab_6 + ".quad %s\n" % str_val
+
+    # print all bool object in bool_map
+    bool_t_list = [(k,v) for k,v in bool_map.iteritems()]
+    #bool_t_list = sorted(bool_t_list, key=lambda x : int(x[0][4:]))
+    for (bool_key, bool_val) in bool_t_list:
+        ret += ".globl %s\n" % bool_key
+        ret += "{: <24}".format("%s:\n" % bool_key)
+        ret += tab_6 + ".quad 0\n"
+        ret += tab_6 + ".quad 4\n"
+        ret += tab_6 + ".quad Bool..vtable\n"
+        ret += tab_6 + ".quad %s\n" % bool_val
 
     # print all strings in string_map
     string_t_list = [(k,v) for k,v in string_map.iteritems()]
