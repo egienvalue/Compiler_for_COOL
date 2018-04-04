@@ -37,9 +37,19 @@ tab_3 = "{:<12}".format("")
 # use these variables to keep tracking info
 label = 0
 string_map = {}
+str_map = {}
+int_map = {}
 symbol_table = {}
 ocuppied_temp = []
 class_tag = {"Bool":0, "Int":1, "String":3}
+
+def new_int():
+    int_key = "int%d" % (len(int_map) + 1)
+    int_val = "abort\\n"
+    if int_val in int_map.values():
+        int_key = [key for key,val in int_map.iteritems() if val == int_val][0] 
+    else:
+        int_map[int_key] = int_val
 
 def find_common_ancestor(type1,type2):
             global parent_map
@@ -157,11 +167,6 @@ def cgen(cur_cls,exp):
         return ret
  
     elif isinstance(exp, String):
-        ret += cgen(cur_cls,New(0,"String",None)) 
-        # Creat space store new string
-        ## string10 holds "hello world"
-        #                movq $string10, %r14
-        #                movq %r14, 24(%r13)
         string_key = "string%d" % (len(string_map) + 1)
         string_val = exp.str_val
         if string_val in string_map.values():
@@ -169,16 +174,39 @@ def cgen(cur_cls,exp):
                             string_val][0] 
         else:
             string_map[string_key] = string_val
+
+        str_key = "str%d" % (len(str_map) + 1)
+        str_val = string_key
+        if str_val in str_map.values():
+            str_key = [key for key,val in str_map.iteritems() if val ==
+                            str_val][0] 
+        else:
+            str_map[str_key] = str_val
+
+        #ret += str(MOV("q", "$" + str_key, acc_reg)) + "\n"
+        ret += cgen(cur_cls,New(0,"String",None)) 
+        # Creat space store new string
+        ## string10 holds "hello world"
+        #                movq $string10, %r14
+        #                movq %r14, 24(%r13)
+ 
         ret += tab_6 + "## %s holds \"%s\"" % (string_key, string_val) + "\n"
         ret += str(MOV("q", "$"+string_key, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(24, acc_reg))) + "\n"
         return ret
 
     elif isinstance(exp, Integer): 
+        int_key = "int%d" % (len(int_map) + 1)
+        int_val = str(exp.int_val)
+        if int_val in int_map.values():
+            int_key = [key for key,val in int_map.iteritems() if val == int_val][0] 
+        else:
+            int_map[int_key] = int_val
 
-        ret += cgen(cur_cls,New(0,"Int",None))
-        ret += str(MOV("q", "$%d" % exp.int_val, temp_reg)) + "\n"
-        ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
+        #ret += cgen(cur_cls,New(0,"Int",None))
+        #ret += str(MOV("q", "$%d" % exp.int_val, temp_reg)) + "\n"
+        #ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
+        ret += str(MOV("q", "$" + int_key, acc_reg)) + "\n"
         return ret
 
 
@@ -1340,6 +1368,18 @@ def main():
     ret += ".byte 100 # \'d\'\n"
     ret += ".byte 0\n\n"
 
+    # print all int in int_map
+    int_t_list = [(k,v) for k,v in int_map.iteritems()]
+    int_t_list = sorted(int_t_list, key=lambda x : int(x[0][3:]))
+    for (int_key, int_val) in int_t_list:
+        ret += ".globl %s\n" % int_key
+        ret += "{: <24}".format("%s:" % int_key)
+        ret += tab_6 + ".quad 1\n"
+        ret += tab_6 + ".quad 4\n"
+        ret += tab_6 + ".quad Int..vtable\n"
+        ret += tab_6 + ".quad %s\n" % int_val
+
+
     # print all strings in string_map
     string_t_list = [(k,v) for k,v in string_map.iteritems()]
     string_t_list = sorted(string_t_list, key=lambda x : int(x[0][6:]))
@@ -1358,6 +1398,7 @@ def main():
                 ret += "{:>4}".format("%s" % str(code))
                 ret += " # \'%s\'" % chr(code) + "\n"
         ret += ".byte 0\n\n"
+ 
 
     fout.write(ret)
 
