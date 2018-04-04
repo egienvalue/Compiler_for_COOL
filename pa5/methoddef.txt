@@ -34,25 +34,11 @@ eq_handler:             ## helper function for =
 			je eq_true
 .globl eq_false
 eq_false:               ## not equal
-                        ## new Bool
-                        pushq %rbp
-                        pushq %r12
-                        movq $Bool..new, %r14
-                        call *%r14
-                        popq %r12
-                        popq %rbp
+                        movq $false, %r13
                         jmp eq_end
 .globl eq_true
 eq_true:                ## equal
-                        ## new Bool
-                        pushq %rbp
-                        pushq %r12
-                        movq $Bool..new, %r14
-                        call *%r14
-                        popq %r12
-                        popq %rbp
-                        movq $1, %r14
-                        movq %r14, 24(%r13)
+                        movq $true, %r13
                         jmp eq_end
 .globl eq_bool
 eq_bool:                ## two Bools
@@ -119,25 +105,11 @@ le_handler:             ## helper function for <=
 			je le_true
 .globl le_false
 le_false:               ## not less-than-or-equal
-                        ## new Bool
-                        pushq %rbp
-                        pushq %r12
-                        movq $Bool..new, %r14
-                        call *%r14
-                        popq %r12
-                        popq %rbp
+                        movq $false, %r13
                         jmp le_end
 .globl le_true
 le_true:                ## less-than-or-equal
-                        ## new Bool
-                        pushq %rbp
-                        pushq %r12
-                        movq $Bool..new, %r14
-                        call *%r14
-                        popq %r12
-                        popq %rbp
-                        movq $1, %r14
-                        movq %r14, 24(%r13)
+                        movq $true, %r13
                         jmp le_end
 .globl le_bool
 le_bool:                ## two Bools
@@ -198,25 +170,11 @@ lt_handler:             ## helper function for <
                         ## for non-primitives, < is always false
 .globl lt_false
 lt_false:               ## not less than
-                        ## new Bool
-                        pushq %rbp
-                        pushq %r12
-                        movq $Bool..new, %r14
-                        call *%r14
-                        popq %r12
-                        popq %rbp
+                        movq $false, %r13
                         jmp lt_end
 .globl lt_true
 lt_true:                ## less than
-                        ## new Bool
-                        pushq %rbp
-                        pushq %r12
-                        movq $Bool..new, %r14
-                        call *%r14
-                        popq %r12
-                        popq %rbp
-                        movq $1, %r14
-                        movq %r14, 24(%r13)
+                        movq $true, %r13
                         jmp lt_end
 .globl lt_bool
 lt_bool:                ## two Bools
