@@ -778,19 +778,20 @@ def cgen(cur_cls,exp):
         ret += ".globl l%d\n" % falselabel
         ret += "{: <24}".format("l%d:" % falselabel)
         ret += "## false branch\n"
-        ret += cgen(cur_cls,New(0,"Bool",None))
-        
+        #ret += cgen(cur_cls,New(0,"Bool",None))
+        ret += str(MOV("q", "$true", acc_reg)) + "\n"
         # invert the expr and return 
-        ret += str(MOV("q", "$1", temp_reg)) + "\n"
-        ret += str(MOV("q", temp_reg, MEM(24, acc_reg))) + "\n"
+        #ret += str(MOV("q", "$1", temp_reg)) + "\n"
+        #ret += str(MOV("q", temp_reg, MEM(24, acc_reg))) + "\n"
         ret += str(JMP("l%d" % endlabel)) + "\n"
 
         # true branch
         ret += ".globl l%d\n" % truelabel
         ret += "{: <24}".format("l%d:" % truelabel)
         ret += "## true branch\n"
-        ret += cgen(cur_cls,New(0,"Bool",None))
-
+        #ret += cgen(cur_cls,New(0,"Bool",None))
+        ret += str(MOV("q", "$false", acc_reg))  + "\n"
+        
         # end branch
         ret += ".globl l%d\n" % endlabel
         ret += "{: <24}".format("l%d:" % endlabel)
@@ -910,8 +911,8 @@ def cgen(cur_cls,exp):
         ret += ".globl l%d\n" % falselabel
         ret += "{: <24}".format("l%d:" % falselabel)
         ret += "## false branch of isvoid\n"
-        ret += cgen(cur_cls,New(0,"Bool",None))
-        
+        #ret += cgen(cur_cls,New(0,"Bool",None))
+        ret += str(MOV("q", "$false", acc_reg)) + "\n"
         # jump to end 
         ret += str(JMP("l%d" % endlabel)) + "\n"
 
@@ -919,9 +920,11 @@ def cgen(cur_cls,exp):
         ret += ".globl l%d\n" % truelabel
         ret += "{: <24}".format("l%d:" % truelabel)
         ret += "## true branch of isvoid\n"
-        ret += cgen(cur_cls,New(0,"Bool",None))
-        ret += str(MOV("q", "$1", temp_reg)) + "\n"
-        ret += str(MOV("q", temp_reg, MEM(24, acc_reg))) + "\n"
+
+        ret += str(MOV("q", "$true", acc_reg)) + "\n"
+        #ret += cgen(cur_cls,New(0,"Bool",None))
+        #ret += str(MOV("q", "$1", temp_reg)) + "\n"
+        #ret += str(MOV("q", temp_reg, MEM(24, acc_reg))) + "\n"
 
         # end branch
         ret += ".globl l%d\n" % endlabel
