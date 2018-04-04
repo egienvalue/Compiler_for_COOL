@@ -5,9 +5,8 @@ pa5: golden reader.py cool_classes.py
 	python main.py test.cl-type
 	diff -w my_test.s test.s > diff.output; [ $$? -eq 1 ]
 	
-
 golden:
-	./cool.dms --x86 test.cl
+	./cool.dms --opt --x86 test.cl
 	./cool.dms --asm test.cl
 
 clean:
