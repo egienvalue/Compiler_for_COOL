@@ -41,7 +41,7 @@ str_map = {}
 int_map = {}
 bool_map = {"true" : "1", "false" : "0"}
 symbol_table = {}
-ocuppied_temp = []
+occupied_temp = []
 class_tag = {"Bool":0, "Int":1, "String":3}
 
 
@@ -211,12 +211,12 @@ def cgen(cur_cls,exp):
 
 
     elif isinstance(exp, Plus):
-        free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
+        free_temp_mem = MEM(0-8*len(occupied_temp),rbp)
         ret += cgen(cur_cls,exp.lhs) 
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
-        ocuppied_temp.append(free_temp_mem)
+        occupied_temp.append(free_temp_mem)
         ret += cgen(cur_cls,exp.rhs)
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
@@ -232,17 +232,17 @@ def cgen(cur_cls,exp):
         # lhs address in acc_reg
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
-        ocuppied_temp.pop() 
+        occupied_temp.pop() 
         return ret
 
     elif isinstance(exp, Minus):
-        free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
+        free_temp_mem = MEM(0-8*len(occupied_temp),rbp)
         ret += cgen(cur_cls,exp.lhs) 
 
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
-        ocuppied_temp.append(free_temp_mem)
+        occupied_temp.append(free_temp_mem)
         ret += cgen(cur_cls,exp.rhs)
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
@@ -265,19 +265,19 @@ def cgen(cur_cls,exp):
         # lhs address in acc_reg
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
-        ocuppied_temp.pop()
+        occupied_temp.pop()
         return ret
 
 
     elif isinstance(exp, Times):
-        free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
+        free_temp_mem = MEM(0-8*len(occupied_temp),rbp)
         ret += cgen(cur_cls,exp.lhs) 
 
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
         
-        ocuppied_temp.append(free_temp_mem) 
+        occupied_temp.append(free_temp_mem) 
         
         ret += cgen(cur_cls,exp.rhs)
         # rhs address in acc_reg
@@ -308,18 +308,18 @@ def cgen(cur_cls,exp):
         # lhs address in acc_reg
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
-        ocuppied_temp.pop()
+        occupied_temp.pop()
         return ret
     
     elif isinstance(exp, Divide):
-        free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
+        free_temp_mem = MEM(0-8*len(occupied_temp),rbp)
         ret += cgen(cur_cls,exp.lhs) 
 
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
        
-        ocuppied_temp.append(free_temp_mem)
+        occupied_temp.append(free_temp_mem)
 
         ret += cgen(cur_cls,exp.rhs)
         # lhs address in acc_reg
@@ -363,16 +363,16 @@ def cgen(cur_cls,exp):
         # lhs address in acc_reg
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
-        ocuppied_temp.pop()
+        occupied_temp.pop()
         return ret
 
     elif isinstance(exp, Let):
         for idx, binding in enumerate(exp.binding_list):
-            ret += tab_6 + "## fp[%d] holds local %s (%s)\n" % (0-len(ocuppied_temp),
+            ret += tab_6 + "## fp[%d] holds local %s (%s)\n" % (0-len(occupied_temp),
                     binding.var_ident.ident, binding.type_ident.ident)
-            free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
+            free_temp_mem = MEM(0-8*len(occupied_temp),rbp)
             ret += cgen(cur_cls,binding)
-            ocuppied_temp.append(free_temp_mem)
+            occupied_temp.append(free_temp_mem)
             # Code for storing the binding back to stack
             if binding.var_ident.ident in symbol_table.keys():
                 symbol_table[binding.var_ident.ident].append(str(free_temp_mem))
@@ -385,7 +385,7 @@ def cgen(cur_cls,exp):
         ret += cgen(cur_cls,exp.exp)
 
         for binding in exp.binding_list:
-            ocuppied_temp.pop()
+            occupied_temp.pop()
             symbol_table[binding.var_ident.ident].pop()
             if symbol_table[binding.var_ident.ident] == []:
                 symbol_table.pop(binding.var_ident.ident)
@@ -407,7 +407,7 @@ def cgen(cur_cls,exp):
         return ret
 
     elif isinstance(exp, Case):
-        free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
+        free_temp_mem = MEM(0-8*len(occupied_temp),rbp)
 
         br_label_map = {}
         ret += tab_6 + "## case expression begins\n"
@@ -421,7 +421,7 @@ def cgen(cur_cls,exp):
         # store acc_reg to temp0
 
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
-        #ocuppied_temp.append(free_temp_mem)
+        #occupied_temp.append(free_temp_mem)
         # store case.exp class tag to acc reg
         ret += str(MOV("q", MEM(0, acc_reg), acc_reg)) + "\n"
 
@@ -515,11 +515,11 @@ def cgen(cur_cls,exp):
             ret += ".globl l%d\n" % br_label_map[case_ele_type]
             ret += "{: <24}".format("l%d:" % \
                     br_label_map[case_ele_type]) 
-            ret += "## fp[%d] holds case %s (%s)" % (0-len(ocuppied_temp),
+            ret += "## fp[%d] holds case %s (%s)" % (0-len(occupied_temp),
                     case_ele.var_ident.ident, case_ele_type) + "\n"
             
-            free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
-            ocuppied_temp.append(free_temp_mem)
+            free_temp_mem = MEM(0-8*len(occupied_temp),rbp)
+            occupied_temp.append(free_temp_mem)
 
             # add it to symbol table
             if case_ele.var_ident.ident in symbol_table.keys():
@@ -529,7 +529,7 @@ def cgen(cur_cls,exp):
 
             ret += cgen(cur_cls,case_ele.body_exp)
              
-            ocuppied_temp.pop()
+            occupied_temp.pop()
             symbol_table[case_ele.var_ident.ident].pop()
             if symbol_table[case_ele.var_ident.ident] == []:
                 symbol_table.pop(case_ele.var_ident.ident)
@@ -799,13 +799,13 @@ def cgen(cur_cls,exp):
         return ret
 
     elif isinstance(exp, Negate):
-        free_temp_mem = MEM(0-8*len(ocuppied_temp),rbp)
+        free_temp_mem = MEM(0-8*len(occupied_temp),rbp)
         ret += cgen(cur_cls, Integer(0, "Int", 0))
 
         # lhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
         ret += str(MOV("q", acc_reg, free_temp_mem)) + "\n"
-        ocuppied_temp.append(free_temp_mem)
+        occupied_temp.append(free_temp_mem)
         ret += cgen(cur_cls,exp.exp)
         # rhs address in acc_reg
         ret += str(MOV("q", MEM(int_context_offset, acc_reg), acc_reg)) + "\n"
@@ -829,7 +829,7 @@ def cgen(cur_cls,exp):
         ## lhs address in acc_reg
         ret += str(MOV("q", free_temp_mem, temp_reg)) + "\n"
         ret += str(MOV("q", temp_reg, MEM(int_context_offset, acc_reg))) + "\n"
-        ocuppied_temp.pop()
+        occupied_temp.pop()
 
         return ret
 
@@ -1157,8 +1157,8 @@ def main():
     #    print("Specify .cl-type input file.")
     #    exit()
     class_map, imp_map, parent_map, aast = rd.read_type_file(sys.argv[1])
-    filename = "my_" + str(sys.argv[1][:-7]) + "s"
-    #filename = str(sys.argv[1][:-7]) + "s"
+    #filename = "my_" + str(sys.argv[1][:-7]) + "s"
+    filename = str(sys.argv[1][:-7]) + "s"
 
     #print filename
     fout = open(filename,"w")
@@ -1392,6 +1392,24 @@ def main():
         ret += tab_6 + ".quad 4\n"
         ret += tab_6 + ".quad String..vtable\n"
         ret += tab_6 + ".quad %s\n" % str_val
+        if string_map.has_key(str_val):
+            string_key = str_val
+            string_val = string_map[str_val]
+            ret += ".globl %s\n" % string_key
+            ret +=  "{: <24}".format("%s:" % string_key)
+            ret += "# \"%s\"\n" % string_val
+            # collect all ascii code in the string
+            asc_code = [ord(c) for c in string_val]
+            for code in asc_code:
+                ret += ".byte"
+                if code == 92:
+                    ret += "{:>4}".format("%s" % str(code))
+                    ret += " # \'\\\\\'" + "\n"
+                else:
+                    ret += "{:>4}".format("%s" % str(code))
+                    ret += " # \'%s\'" % chr(code) + "\n"
+            ret += ".byte 0\n\n"
+            string_map.pop(str_val)
 
     # print all bool object in bool_map
     bool_t_list = [(k,v) for k,v in bool_map.iteritems()]
@@ -1407,12 +1425,12 @@ def main():
     # print all strings in string_map
     string_t_list = [(k,v) for k,v in string_map.iteritems()]
     string_t_list = sorted(string_t_list, key=lambda x : int(x[0][6:]))
-    for (str_key, str_val) in string_t_list:
-        ret += ".globl %s\n" % str_key
-        ret +=  "{: <24}".format("%s:" % str_key)
-        ret += "# \"%s\"\n" % str_val
+    for (string_key, string_val) in string_t_list:
+        ret += ".globl %s\n" % string_key
+        ret +=  "{: <24}".format("%s:" % string_key)
+        ret += "# \"%s\"\n" % string_val
         # collect all ascii code in the string
-        asc_code = [ord(c) for c in str_val]
+        asc_code = [ord(c) for c in string_val]
         for code in asc_code:
             ret += ".byte"
             if code == 92:
